@@ -1,6 +1,6 @@
 # SaaS 이벤트 처리 지침
 
-다른 팀원 담당. [데이터 계약](../../../docs/api-contract.md)이 수신 형식·응답·정규화 의미의 단일 기준이다.
+dashboard-data 작업 소유. 수신·정규화는 별도의 saas-core 작업이 backend/src/ingest/에서 구현한다. [병렬 개발 기준](../../../docs/saas-parallel-development.md)을 따른다. [데이터 계약](../../../docs/api-contract.md)이 수신 형식·응답·정규화 의미의 단일 기준이다.
 
 원본 파싱은 SaaS에서 한 번만 수행한다. 실측되지 않은 정책 인자는 추측하지 않고 OTHER로 보존한다. PostgreSQL에 원본·정규화 정보와 유일한 (instanceId, messageId)를 저장한다. 원본은 상세 조회에만 포함한다.
 
