@@ -40,9 +40,9 @@ def mapped_file(event: dict) -> dict | None:
     return {"path": path, "operation": "read"}
 
 
-def mapped_network(event: dict) -> dict | None:
+def mapped_network(event: dict, *, sample: bool = False) -> dict | None:
     # Tetragon 담당의 tcp_connect 성공/ECONNREFUSED 양쪽 실측에 근거한다.
-    if event.get("policy_name") != "hack-demo-network":
+    if event.get("policy_name") != "hack-demo-network" and not (sample and event.get("policy_name") == "sample-risk-network"):
         return None
     if event.get("function_name") != "tcp_connect":
         return None
