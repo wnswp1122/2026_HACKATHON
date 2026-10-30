@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from db import get_connection
 
-from .filters import EventFilters, EventPage
+from .filters import EventPage, QueryFilters
 from .queries import count_events, public_event, read_dashboard, read_events, utc_text
+from .screens import router as screens_router
 
 
 router = APIRouter(prefix="/api", tags=["events"])
@@ -52,7 +53,10 @@ def event_detail(eventId: UUID):
 
 
 @router.get("/dashboard", dependencies=[Depends(single_query_values)])
-def dashboard(filters: Annotated[EventFilters, Query()]):
+def dashboard(filters: Annotated[QueryFilters, Query()]):
     with get_connection() as conn:
         conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         return read_dashboard(conn, filters)
+
+
+router.include_router(screens_router, dependencies=[Depends(single_query_values)])

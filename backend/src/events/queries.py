@@ -10,9 +10,11 @@ from .filters import EventFilters, EventType, Source
 EVENT_FIELDS = (
     "eventId", "instanceId", "source", "receivedAt", "occurredAt", "nodeName",
     "process", "eventType", "target", "policyName", "reportedAction", "status",
-    "reason", "outcome",
+    "reason", "outcome", "file", "network",
 )
-PROCESS_FIELDS = ("execId", "pid", "uid", "binary", "parentBinary")
+PROCESS_FIELDS = ("execId", "pid", "uid", "binary", "parentBinary", "parentExecId")
+FILE_FIELDS = ("path", "operation")
+NETWORK_FIELDS = ("sourceIp", "sourcePort", "destinationIp", "destinationPort", "protocol", "operation")
 
 
 def utc_text(value: datetime) -> str:
@@ -26,8 +28,9 @@ def where_clause(filters: EventFilters) -> tuple[str, dict]:
     for name, column in (
         ("instanceId", "instance_id"), ("source", "source"),
         ("eventType", "normalized->>'eventType'"), ("status", "normalized->>'status'"),
+        ("processExecId", "normalized#>>'{process,execId}'"), ("policyName", "normalized->>'policyName'"),
     ):
-        value = getattr(filters, name)
+        value = getattr(filters, name, None)
         if value is not None:
             clauses.append(f"{column} = %({name})s")
             params[name] = str(value)
@@ -42,6 +45,9 @@ def public_event(row: dict) -> dict:
     )
     process = event["process"] or {}
     event["process"] = {key: process.get(key) for key in PROCESS_FIELDS}
+    for field, keys in (("file", FILE_FIELDS), ("network", NETWORK_FIELDS)):
+        value = event[field]
+        event[field] = {key: value.get(key) for key in keys} if isinstance(value, dict) else None
     return event
 
 

@@ -7,6 +7,7 @@ from psycopg.types.json import Jsonb
 from db import get_connection
 from src.events.filters import EventFilters
 from src.events.queries import read_dashboard, read_summaries, utc_text
+from .replays import router as replays_router
 
 
 router = APIRouter(prefix="/api", tags=["snapshots"])
@@ -44,3 +45,6 @@ def get_snapshot(snapshotId: UUID):
     if row is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "message": "스냅샷을 찾을 수 없습니다."})
     return row["payload"]
+
+
+router.include_router(replays_router)

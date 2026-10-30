@@ -59,6 +59,18 @@ class EventFilters(BaseModel):
         return self
 
 
-class EventPage(EventFilters):
+class QueryFilters(EventFilters):
+    processExecId: str | None = Field(default=None, min_length=1, max_length=1024)
+    policyName: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class EventPage(QueryFilters):
     page: int = Field(default=1, ge=1)
     pageSize: int = Field(default=50, ge=1, le=100)
+
+
+class ReadinessFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    instanceId: str | None = Field(default=None, min_length=1, max_length=100)
+    source: Source
