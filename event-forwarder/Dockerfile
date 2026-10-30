@@ -5,7 +5,7 @@ COPY requirements.lock ./requirements.lock
 RUN pip install --no-cache-dir -r requirements.lock \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --no-create-home app
-COPY main.py settings.py forwarder.py inputs.py ./
+COPY main.py settings.py forwarder.py inputs.py status_input.py ./
 USER app
 ENTRYPOINT ["python", "main.py"]
 CMD ["--check-config"]

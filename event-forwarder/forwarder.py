@@ -47,14 +47,14 @@ def validate_event(line: bytes):
     return line.strip()
 
 
-def valid_ack(response: httpx.Response, message_id: str):
+def valid_ack(response: httpx.Response, message_id: str, id_field="eventId"):
     try:
         ack = response.json()
         if not isinstance(ack, dict):
             return False
-        if not isinstance(ack.get("eventId"), str):
+        if not isinstance(ack.get(id_field), str):
             return False
-        UUID(ack["eventId"])
+        UUID(ack[id_field])
         return (
             ack.get("messageId") == message_id
             and type(ack.get("duplicate")) is bool
@@ -75,17 +75,34 @@ def retry_delay(response: httpx.Response | None, retry_index: int):
     return delay
 
 
-def send_event(client: httpx.Client, settings: Settings, event: bytes,
-               source: str, counts: Counts):
-    envelope = {
+def make_envelope(settings: Settings, source: str):
+    return {
         "schemaVersion": "1",
         "messageId": str(uuid4()),
         "instanceId": settings.instance_id,
         "source": source,
     }
+
+
+def send_event(client: httpx.Client, settings: Settings, event: bytes,
+               source: str, counts: Counts):
+    envelope = make_envelope(settings, source)
     # 한 번만 직렬화해 모든 시도에서 같은 내용과 ID를 유지한다.
     body = json.dumps(envelope).encode("utf-8")[:-1] + b', "rawEvent": ' + event + b'}'
-    headers = {"Authorization": f"Bearer {settings.ingest_token}",
+    send_body(client, settings.events_url, settings.ingest_token, body,
+              envelope["messageId"], counts, "eventId")
+
+
+def send_status(client: httpx.Client, settings: Settings, payload: dict,
+                source: str, counts: Counts):
+    envelope = make_envelope(settings, source) | payload
+    body = json.dumps(envelope, allow_nan=False).encode("utf-8")
+    send_body(client, settings.status_url, settings.ingest_token, body,
+              envelope["messageId"], counts, "reportId")
+
+
+def send_body(client, url, token, body, message_id, counts, id_field):
+    headers = {"Authorization": f"Bearer {token}",
                "Content-Type": "application/json"}
     for attempt in range(4):
         response = None
@@ -93,7 +110,7 @@ def send_event(client: httpx.Client, settings: Settings, event: bytes,
         if attempt:
             counts.retries += 1
         try:
-            response = client.post(settings.events_url, content=body, headers=headers)
+            response = client.post(url, content=body, headers=headers)
         except httpx.RequestError:
             reason = "network_error"
         else:
@@ -103,7 +120,7 @@ def send_event(client: httpx.Client, settings: Settings, event: bytes,
                 diagnose("authentication_error", http_status=status)
                 raise AuthenticationError
             if status in (200, 201):
-                if valid_ack(response, envelope["messageId"]):
+                if valid_ack(response, message_id, id_field):
                     if status == 200:
                         counts.duplicates += 1
                     else:
