@@ -234,6 +234,7 @@ export default function AnalysisPanel({
           </div>
         </div>
       )}
+      {snapshot?.filters.source === 'sample' && <p className="hint">sample AI 분석과 캡처는 환산량이 아닌 대표 원본 집계와 이벤트를 사용합니다.</p>}
       {snapshot && (
         <div className="analysis-snapshot">
           <div className="panel-heading"><h3>분석 데이터</h3><span>{dateTime(snapshot.createdAt)}</span></div>

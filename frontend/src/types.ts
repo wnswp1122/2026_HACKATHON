@@ -9,6 +9,20 @@ export type EventType = (typeof eventTypes)[number];
 export type Source = 'live' | 'sample';
 export type Status = 'observed' | 'attention';
 export const statusLabels: Record<Status, string> = { observed: '안전', attention: '위험' };
+const sampleServerNames: Record<string, string> = {
+    'integration-sample': 'board-api-prod-kr-01',
+    'sample-worker': 'board-worker-prod-kr-01',
+    'sample-edge': 'edge-gateway-prod-kr-01',
+    'sample-board-01': 'board-api-staging-kr-01',
+    'sample-worker-02': 'board-worker-staging-kr-02',
+};
+export function serverName(id: string): string {
+  if (sampleServerNames[id]) return sampleServerNames[id];
+  return /^presentation-[a-f0-9]{12}$/.test(id)
+    ? `board-api-prod-kr-${id.slice(-4)}`
+    : id;
+}
+
 export type Filters = {
   from: string;
   to: string;
@@ -57,6 +71,7 @@ export type Dashboard = {
   bySource: { source: Source; count: number }[];
   timeline: { bucketStart: string; count: number; attention: number }[];
   bucketSeconds: number;
+  simulation?: { mode: 'weighted-sample'; representativeEvents: number };
 };
 export type Snapshot = {
   snapshotId: string;
@@ -211,3 +226,17 @@ export function safeSnapshotFilters(value: Filters): Filters {
     }).filter(([, v]) => v !== undefined),
   ) as Filters;
 }
+
+export type InvestigationAnalysis = {
+  replayId: string;
+  eventId: string | null;
+  model: string;
+  createdAt: string;
+  result: {
+    summaries: { eventId: string; summary: string }[];
+    facts: string[];
+    hypotheses: string[];
+    checks: string[];
+    limitations: string[];
+  };
+};

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 import httpx
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from .validation import AnalysisResult, fail
 
@@ -41,7 +41,8 @@ def configuration() -> tuple[str, str, str]:
 
 
 def request_analysis(
-    client: httpx.Client, payload: dict, image: bytes, config: tuple[str, str, str]
+    client: httpx.Client, payload: dict, image: bytes | None, config: tuple[str, str, str],
+    *, result_model: type[BaseModel] = AnalysisResult,
 ) -> tuple[str, dict]:
     key, model, instructions = config
     body = {
@@ -50,16 +51,13 @@ def request_analysis(
             "role": "user",
             "parts": [
                 {"text": json.dumps(payload, ensure_ascii=False, allow_nan=False)},
-                {"inlineData": {
-                    "mimeType": "image/png",
-                    "data": base64.b64encode(image).decode("ascii"),
-                }},
+                *([{"inlineData": {"mimeType": "image/png", "data": base64.b64encode(image).decode("ascii")}}] if image is not None else []),
             ],
         }],
         "generationConfig": {
             "candidateCount": 1,
             "responseMimeType": "application/json",
-            "responseJsonSchema": AnalysisResult.model_json_schema(),
+            "responseJsonSchema": result_model.model_json_schema(),
         },
     }
     try:
@@ -74,7 +72,7 @@ def request_analysis(
             if response.status_code == 429:
                 raise fail(503, "AI_QUOTA_EXHAUSTED", "Gemini API의 요청·토큰 한도에 도달했습니다. 한도가 회복된 뒤 다시 시도하세요.")
             response.raise_for_status()
-        return parse_response(json.loads(data))
+        return parse_response(json.loads(data), result_model=result_model)
     except httpx.TimeoutException:
         raise fail(504, "AI_TIMEOUT", "AI 응답 시간이 초과되었습니다. 다시 요청할 수 있습니다.") from None
     except (httpx.HTTPError, ValueError, TypeError, KeyError, ValidationError, RecursionError):
@@ -82,7 +80,7 @@ def request_analysis(
         raise fail(502, "AI_FAILED", "AI 요청 또는 응답 검증에 실패했습니다. 다시 요청할 수 있습니다.") from None
 
 
-def parse_response(response: dict) -> tuple[str, dict]:
+def parse_response(response: dict, *, result_model: type[BaseModel] = AnalysisResult) -> tuple[str, dict]:
     if not isinstance(response, dict) or response.get("error") is not None:
         raise ValueError
     feedback = response.get("promptFeedback", {})
@@ -112,7 +110,7 @@ def parse_response(response: dict) -> tuple[str, dict]:
         if not isinstance(part.get("text"), str):
             raise ValueError
         texts.append(part["text"])
-    result = AnalysisResult.model_validate_json("".join(texts), strict=True)
-    if any(not text.strip() for entries in result.model_dump().values() for text in entries):
+    result = result_model.model_validate_json("".join(texts), strict=True)
+    if result_model is AnalysisResult and any(not text.strip() for entries in result.model_dump().values() for text in entries):
         raise ValueError
-    return model, result.model_dump()
+    return model, result.model_dump(mode="json")

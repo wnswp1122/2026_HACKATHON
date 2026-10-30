@@ -1,3 +1,4 @@
+import { serverName } from '../types';
 import { useCallback } from 'react';
 import { api } from '../api';
 import {
@@ -53,7 +54,6 @@ export function ReadinessScreen({
       <ResourceStatus label={`수집·정책 상태 · ${source}`} resource={resource} />
       {data && (
         <>
-          <div className="scope-chips"><span className="status-chip">{shownSource}</span><span className="status-chip">{resource.data?.instanceId || '전체 서버'}</span></div>
           <Stats
             items={(['ready', 'warning', 'error', 'unknown', 'stale'] as const).map((state) => ({
               label: labels[state],
@@ -84,7 +84,7 @@ export function ReadinessScreen({
                             className="text-button"
                             onClick={() => onSelectInstance(item.instanceId)}
                           >
-                            {item.instanceId}
+                            {serverName(item.instanceId)}
                           </button>
                         </td>
                         <td>
@@ -147,7 +147,7 @@ export function ReadinessScreen({
                             <tr key={`${item.instanceId}-${component.name}`}>
                               <td>
                                 {component.name}
-                                <small>{item.instanceId}</small>
+                                <small>{serverName(item.instanceId)}</small>
                               </td>
                               <td>
                                 <span className={`badge ${component.state}`}>

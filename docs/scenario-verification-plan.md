@@ -13,6 +13,7 @@
 | SaaS | [app.py](../backend/app.py), [db.py](../backend/db.py), `src/ingest/events/snapshots/analysis` | 실제 PostgreSQL에 수신·중복 제거·조회·고정·이미지·분석 저장 |
 | 화면 | [frontend/README.md](../frontend/README.md), `npm run typecheck`, `npm run build`, `npm run dev` | `/overview`, `/replay`, `/readiness`, `/telemetry`, `/servers` 브라우저 확인 |
 | 독립 UI mock | `frontend/scripts/mock-server.mjs`, `npm run mock` | UI 장애·상한 재현 보조. 실제 수신기·PostgreSQL·AI 검증을 대신하지 않음 |
+| 간편 실행 — 구현됨 | [scripts/demo.py](../scripts/demo.py) | Mac→Lima 전달, 개별 probe 기대 결과 확인, enforce 후 observe 복구. 전체 통합 판정은 하지 않음 |
 | **신규 제안** | `scripts/verify_scenarios.py` | 단계 선택, HTTP 요청·기존 CLI 호출, 실행 자원 기록·정리, JSON/Markdown 보고 |
 | **신규 제안** | `frontend/scripts/verify-browser.mjs` | 실제 화면 조작·캡처·요청 순서 검사. Playwright를 로컬 개발 의존성으로 고정하고 제품 번들·CI에는 넣지 않음 |
 
@@ -22,7 +23,7 @@
 
 - Python 3.12와 각 `requirements.lock`, 프론트 Node `>=22.12.0`·lock 설치 상태를 확인한다. backend 작업 디렉터리에서 `python db.py`를 명시적으로 실행한다. `/health`의 DB 연결 성공만으로 스키마 준비를 판단하지 않는다.
 - 기본 대상은 **이번 검증 전용 PostgreSQL DB와 게시판 DB**다. `DATABASE_URL`, `INGEST_TOKEN`, `INSTANCE_IDS`, `ATTENTION_POLICY_NAMES`를 서버에 설정하고, 전송기에는 `EVENTS_URL`, `STATUS_URL`, `INSTANCE_ID`, 이벤트 모드의 `TETRAGON_LOG_PATH`를 설정한다. `.env` 자동 로딩을 가정하지 않는다.
-- 실행마다 UUID `runId`와 구별되는 sample/live 인스턴스 ID를 발급하고 SaaS 허용 목록에 미리 등록한다. 기존 공용 DB를 사용해야 한다면 이번 ID·UUID 목록으로만 조회·정리하며 전체 테이블 초기화는 금지한다.
+- 실행마다 UUID `runId`를 발급하고, 미리 SaaS 허용 목록에 등록된 검증용 sample/live 인스턴스 ID를 사용한다. 기존 공용 DB를 사용해야 한다면 이번 ID·UUID 목록으로만 조회·정리하며 전체 테이블 초기화는 금지한다.
 - live는 `2026-hack-client` Linux VM, 기존 Tetragon 버전·커널·BTF·소유 label·컨테이너 상태를 실제 조회한다. Mac에서 `runtime.py`를 직접 실행하지 않는다. VM 내부 `127.0.0.1`과 Mac의 주소는 다르므로 전송기 위치에서 SaaS 접근을 별도로 확인한다.
 - 게시판과 SaaS DB가 같은 검증 VM에 있으면 `TETRAGON_EXPORT_DEMO_ONLY=1`로 게시판 컨테이너 전용 JSON export를 선택한다. 전체 호스트 export는 SaaS DB 접속 종료를 다시 수집하는 순환을 만들 수 있다. 별도 고객 서버를 관찰하는 환경에서는 이 시연용 옵션을 기본으로 강제하지 않는다. S08 뒤 probe 없는 구간에 DB 조회를 반복해 SaaS 자체 이벤트가 늘지 않는지도 확인한다.
 - 실행기는 서비스를 기본 자동 기동하지 않는다. 준비되지 않은 의존성은 `BLOCKED`로 기록한다. 필요한 기동을 선택할 경우 자신이 만든 PID·컨테이너·DB만 소유 목록에 기록한다. 이미 있는 컨테이너를 삭제하거나 VM·전체 워크트리를 재시작하지 않는다.
@@ -96,3 +97,41 @@ S14의 오래된 상태를 빠르게 검사할 때는 **sample fixture**에 과�
 PR의 통합 성공 표시는 **선택한 실제 실행 범위**에 한정한다. P0 성공은 sample 기반 실제 SaaS 통합, P1 성공은 새 live 수집·전송과 화면 연결, P2는 장애·경계 보강을 뜻한다. UI mock·AI mock·실제 모델 결과를 분리하고, 외부 AI 미실행은 `NOT_RUN`으로 남긴다.
 
 구현 순서는 **P0 실행기·보고·정리 → P1 Linux live 연결과 정책 원복 → 실제 SaaS 브라우저 어댑터 → P2 장애·경계·AI mock → 선택 실제 AI**다. 각 단계는 실패 위치와 복구 여부가 드러나는 작은 단위로 완료하며 새 자동 CI나 제품 기능 확장은 포함하지 않는다.
+
+
+## 8. 다음 구현 작업과 실행기 경계
+
+기존 [간편 실행](demo-quickstart.md)은 완료된 별도 도구다. 통합 실행기는 아래 순서로 개발하며 `scripts/verify_scenarios.py`를 단일 CLI로 시작한다. 먼저 작은 함수로 단계·검증·보고 책임을 나누고, 브라우저 조작만 Node 어댑터로 분리한다. 현재 명령과 미래 명령을 같은 것으로 안내하지 않는다.
+
+| 순서 | 작업 범위 | 입출력·의존 관계 | 완료 기준 |
+|---|---|---|---|
+| 1 | 전제 확인·실행 기록 + sample P0 | URL/허용 instanceId/환경변수 → runId·manifest·HTTP 검증 결과 | 실제 DB/API에서 S01–S07 실행, 실패 단계와 기대/실제 상태 기록, 이번 생성 자원만 정리 |
+| 2 | live 수집·정책 시나리오 | Linux runtime/forwarder + 1번 보고 기반 → 새 execId·eventId·reportId 대조 | S08–S11, 수집→전송→저장 확인, 시작 정책 복구 및 실패 시 수동 복구 명령 출력 |
+| 3 | 브라우저·3D 지도·PNG | 1·2번의 고정 ID와 실제 API → 화면 증거·PNG 해시 | 5화면/리플레이/고정 캡처/복원 확인, 좌표 없음과 설정 좌표 분리, WebGL 불가 시 목록 유지 |
+| 4 | 장애·경계·AI | 위 3개 단계 + 격리된 장애 주입 → S13–S17 결과 | 재시도/중복/상한/동시 수정·복구 확인, 모의 AI와 실제 AI 결과 분리 |
+
+### 실행 상태와 판정
+
+`전제 확인 → 입력 생성 → 동작 실행 → 경계별 확인 → 복구/정리 → 결과 저장` 순서로 진행한다. 각 단계는 제한 시간 내 polling하고, 대상 UUID·instanceId·execId를 기준으로 확인한다. 단순 전체 건수 증가를 이번 실행의 성공으로 보지 않는다. 실행기 자신의 DB 활동이 다시 수집되는 순환도 검사한다.
+
+- 선택 단계의 전제가 없으면 `BLOCKED`, 기대 불일치·타임아웃·복구 실패는 `FAIL`, 검증을 끝낸 단계만 `PASS`로 표시한다.
+- `enforce`의 종료137은 정책 대응 검증 중 하나의 증거다. 실제 SIGKILL 원본과 동일 프로세스·정책·시각을 대조해야 통합 PASS다. 종료코드만 확인한 간편 실행 결과를 그대로 PASS로 승격하지 않는다.
+- 빠른 시연은 demo.py를 재사용할 수 있다. 원래 정책이 없거나 disabled인 상태까지 정확히 원복해야 하는 통합 실행은 직접 runtime.py 호출로 시작 상태를 저장·복구한다. demo.py의 observe 복구를 범용 원복으로 오인하지 않는다.
+- 현재 전송기는 행별 eventId 영수증을 파일로 남기지 않는다. 첫 구현은 `instanceId + source + 새 execId + 시간 범위`로 실제 수신 기록을 찾고 원본과 대조한다. sample 중복 검증은 고정 messageId를 사용한 직접 HTTP 경로로 별도 확인한다.
+- 앱의 INSTANCE_IDS는 설정으로 고정되므로 실행기에서 임의 ID를 만들고 바로 보내지 않는다. 미리 허용한 검증 인스턴스 목록을 입력받고 그 안에서 runId로 자료를 구분한다. 격리 환경을 직접 생성한 경우에만 새 ID로 서버 설정을 구성한다.
+- 초기 P0는 스키마가 이미 적용된 전용 DB를 사용한다. 일반 실행 중 자동 migration·서비스 재시작은 하지 않는다. 원래 환경을 바꾸는 준비 작업은 별도 선택으로 분리한다.
+
+### 최소 출력 예시 — 형식 제안
+
+```text
+runId=<UUID> profile=live
+PASS    preflight       API/DB/수집 경로 준비
+PASS    file-observe    이번 execId에 대한 파일 이벤트 저장 확인
+FAIL    network        시간 내 기대 이벤트 미수신
+PASS    restore         시작 정책 복구 확인
+NOT_RUN real-ai         명시적으로 선택하지 않음
+result=.local/scenarios/<runId>/summary.md
+exit=1
+```
+
+이 예시는 실제 실행 결과가 아니다. `results.json`에는 각 단계의 근거 ID·기대/실제·시각·실패 코드·복구 상태를 저장하고 비밀 헤더·원본 민감 데이터는 제외한다. P0 구현 뒤 실제 성공과 고의로 만든 실패를 각각 한 번 실행해 종료 코드·보고서·정리 동작을 확인한 다음 live 단계로 확장한다.

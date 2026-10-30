@@ -55,7 +55,7 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
     <AreaChart
       width={fixed ? 650 : undefined}
       height={fixed ? 220 : undefined}
-      data={data.timeline.map((row) => ({ ...row, safe: row.count - row.attention }))}
+      data={data.timeline.map((row) => ({ ...row, safe: (row.count - row.attention) / data.bucketSeconds, attention: row.attention / data.bucketSeconds }))}
       margin={{ top: 12, right: 16, bottom: 0, left: -15 }}
     >
       <CartesianGrid vertical={false} stroke="#242a33" />
@@ -73,12 +73,11 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
       />
       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
       {!fixed && (
-        <Tooltip labelFormatter={(value) => new Date(String(value)).toLocaleString('ko-KR')} />
+        <Tooltip labelFormatter={(value) => new Date(String(value)).toLocaleString('ko-KR')} formatter={(value, name) => [`${Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}건/초`, name]} />
       )}
       <Area
         name="안전"
         dataKey="safe"
-        stackId="status"
         stroke="var(--status-safe)"
         fill="var(--status-safe-fill)"
         strokeWidth={2}
@@ -87,7 +86,6 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
       <Area
         name="위험"
         dataKey="attention"
-        stackId="status"
         stroke="var(--status-danger)"
         fill="var(--status-danger-fill)"
         strokeWidth={2}
@@ -124,8 +122,8 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
     <div className={`charts ${fixed ? 'fixed-charts' : ''}`}>
       <article className="panel">
         <div className="panel-heading">
-          <h3>이벤트 수신 추이</h3>
-          <span>{data.bucketSeconds / 60}분 단위</span>
+          <h3>초당 이벤트 수신 추이</h3>
+          <span>건/초 · {data.bucketSeconds / 60}분 평균</span>
         </div>
         <div className="legend">
           <i className="dot status-observed" /> 안전 <i className="dot status-attention" /> 위험

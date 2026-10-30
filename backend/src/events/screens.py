@@ -8,7 +8,7 @@ from db import get_connection
 from .filters import EventType, QueryFilters, ReadinessFilters
 from .graph import read_graph
 from .locations import load_locations
-from .queries import NETWORK_FIELDS, utc_text, where_clause
+from .queries import SAMPLE_WEIGHT, NETWORK_FIELDS, utc_text, where_clause
 from .readiness import read_readiness
 
 
@@ -21,8 +21,8 @@ def servers(filters: Annotated[QueryFilters, Query()]):
     with get_connection() as conn:
         rows = conn.execute(
             f"""SELECT instance_id, normalized->>'eventType' AS event_type,
-                       count(*) AS total,
-                       count(*) FILTER (WHERE normalized->>'status' = 'attention') AS attention,
+                       sum({SAMPLE_WEIGHT})::bigint AS total,
+                       coalesce(sum({SAMPLE_WEIGHT}) FILTER (WHERE normalized->>'status' = 'attention'), 0)::bigint AS attention,
                        max(received_at) AS last_received_at
                 FROM events WHERE {where} GROUP BY 1, 2 ORDER BY 1, 2""", params,
         ).fetchall()
@@ -53,10 +53,10 @@ def network(filters: Annotated[QueryFilters, Query()]):
         data = conn.execute(
             f"""WITH grouped AS (
                   SELECT instance_id, normalized#>>'{{process,execId}}' AS exec_id,
-                         normalized->'network' AS network, count(*) AS count,
+                         normalized->'network' AS network, sum({SAMPLE_WEIGHT})::bigint AS count,
                          host(coalesce(normalized#>>'{{network,destinationIp}}',
                                        normalized#>>'{{network,sourceIp}}')::inet) AS target_ip,
-                         count(*) FILTER (WHERE normalized->>'status' = 'attention') AS attention_count
+                         coalesce(sum({SAMPLE_WEIGHT}) FILTER (WHERE normalized->>'status' = 'attention'), 0)::bigint AS attention_count
                   FROM events WHERE {where} AND normalized->>'eventType' = 'NETWORK'
                   GROUP BY 1, 2, 3, 5
                 ), limited AS (

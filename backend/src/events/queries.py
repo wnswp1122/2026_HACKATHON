@@ -17,6 +17,10 @@ FILE_FIELDS = ("path", "operation")
 NETWORK_FIELDS = ("sourceIp", "sourcePort", "destinationIp", "destinationPort", "protocol", "operation")
 
 
+# 서버가 준비한 sample에만 적용한다. live 이벤트는 항상 원본 한 건으로 집계한다.
+SAMPLE_WEIGHT = "CASE WHEN source = 'sample' THEN greatest(1, coalesce((normalized->>'sampleWeight')::bigint, 1)) ELSE 1 END"
+
+
 def utc_text(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
@@ -93,7 +97,7 @@ def read_summaries(conn: Connection, filters: EventFilters, *, limit: int) -> li
     ]
 
 
-def read_dashboard(conn: Connection, filters: EventFilters) -> dict:
+def read_dashboard(conn: Connection, filters: EventFilters, *, simulate_sample: bool = False) -> dict:
     duration = filters.to - filters.from_
     seconds = 60 if duration <= timedelta(hours=6) else 600 if duration <= timedelta(hours=48) else 3600
     # timedelta 나눗셈은 부동소수점 반올림 없이 마지막 부분 버킷도 포함한다.
@@ -104,7 +108,8 @@ def read_dashboard(conn: Connection, filters: EventFilters) -> dict:
     ]
     by_type = {kind.value: 0 for kind in EventType}
     by_source = {source.value: 0 for source in Source}
-    total = attention = 0
+    total = attention = representative_total = 0
+    weight = SAMPLE_WEIGHT if simulate_sample else "1"
     where, params = where_clause(filters)
     params["seconds"] = seconds
     rows = conn.execute(
@@ -112,13 +117,14 @@ def read_dashboard(conn: Connection, filters: EventFilters) -> dict:
                    normalized->>'status' AS status,
                    floor(extract(epoch FROM (received_at - %(start)s::timestamptz))
                          / %(seconds)s)::integer AS bucket,
-                   count(*) AS count
+                   sum({weight})::bigint AS count, count(*) AS representatives
             FROM events WHERE {where}
             GROUP BY 1, 2, 3, 4""",
         params,
     ).fetchall()
     for row in rows:
         count = row["count"]
+        representative_total += row["representatives"]
         flagged = count if row["status"] == "attention" else 0
         total += count
         attention += flagged
@@ -126,9 +132,12 @@ def read_dashboard(conn: Connection, filters: EventFilters) -> dict:
         by_source[row["source"]] += count
         timeline[row["bucket"]]["count"] += count
         timeline[row["bucket"]]["attention"] += flagged
-    return {
+    result = {
         "total": total, "attention": attention,
         "byType": [{"eventType": key, "count": value} for key, value in by_type.items()],
         "bySource": [{"source": key, "count": value} for key, value in by_source.items()],
         "timeline": timeline, "bucketSeconds": seconds,
     }
+    if simulate_sample and total != representative_total:
+        result["simulation"] = {"mode": "weighted-sample", "representativeEvents": representative_total}
+    return result

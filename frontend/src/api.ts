@@ -1,5 +1,6 @@
 import type {
   Analysis,
+  InvestigationAnalysis,
   Dashboard,
   Event,
   EventPage,
@@ -71,6 +72,11 @@ export const describeError = (error: unknown) =>
 export const query = (filters: PeriodFilters) =>
   new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined));
 export const api = {
+  investigationAnalysis: (replayId: string, eventId: string | undefined, signal: AbortSignal) =>
+    request<InvestigationAnalysis>(`/replays/${encodeURIComponent(replayId)}/analysis`, {
+      method: 'POST', signal, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventId ? { eventId } : {}),
+    }),
   network: (filters: PeriodFilters, signal: AbortSignal) =>
     request<NetworkResponse>(`/network?${query(filters)}`, { signal }),
   graph: (filters: PeriodFilters, signal: AbortSignal) =>

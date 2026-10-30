@@ -566,27 +566,20 @@ td small {
 }
 .badge {
   display: inline-block;
-  border-radius: 4px;
-  background: #1e242d;
   color: #aab3c1;
   font-size: 13px;
-  padding: 2px 7px;
 }
 .badge.live {
   color: #2bd67b;
-  background: #2bd67b17;
 }
 .badge.sample {
   color: #a78bfa;
-  background: #a78bfa20;
 }
 .badge.attention {
   color: var(--pink);
-  background: #ff3b5c20;
 }
 .badge.frozen {
   color: var(--cyan);
-  background: #22d3ee20;
 }
 .text-button {
   padding: 2px 0;
@@ -1175,9 +1168,6 @@ main,
 .server-dashboard-grid .charts {
   grid-template-columns: 1fr 1fr;
 }
-.server-dashboard-grid .server-relationships {
-  grid-column: 1 / -1;
-}
 .server-dashboard-grid .distribution {
   flex-direction: column;
   gap: 0;
@@ -1378,21 +1368,17 @@ main,
 .readiness-grid .badge.ready,
 .badge.enabled {
   color: #2bd67b;
-  background: #2bd67b15;
 }
 .readiness-grid .badge.error {
   color: var(--pink);
-  background: #ff3b5c20;
 }
 .readiness-grid .badge.stale,
 .badge.warning,
 .badge.disabled {
   color: #f5a524;
-  background: #f5a52420;
 }
 .readiness-grid .badge.unknown {
   color: #a9b1c2;
-  background: #242a33;
 }
 .replay-actions {
   display: flex;
@@ -1716,9 +1702,6 @@ main,
 .advanced-filters { flex-basis: 100%; border-top: 1px solid var(--border); padding-top: 10px; }
 .advanced-filters summary { cursor: pointer; color: var(--muted); font-size: 14px; width: fit-content; }
 .advanced-filter-fields { display: flex; flex-wrap: wrap; gap: 14px; padding-top: 14px; }
-.scope-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.status-chip { display: inline-flex; align-items: center; padding: 4px 9px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 12px; }
-.status-chip.caution { color: #f5bc68; border-color: #7d6033; }
 .attention-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; margin-bottom: 16px; }
 .attention-summary > div { display: flex; align-items: center; gap: 8px; }
 .attention-summary.has-matches { border-color: #af4056; background: #291820; }
@@ -1888,8 +1871,8 @@ main,
 }
 
 /* Event status design: observed = safe/blue, attention = danger/red. */
-.badge.observed, .status-chip.status-observed { color: var(--status-safe); background: #3b82f61a; border-color: #3b82f655; }
-.badge.attention, .status-chip.status-attention { color: var(--status-danger); background: #ef44441a; border-color: #ef444455; }
+.badge.observed { color: var(--status-safe); }
+.badge.attention { color: var(--status-danger); }
 select.status-observed, option[value='observed'] { color: var(--status-safe); }
 select.status-attention, option[value='attention'] { color: var(--status-danger); }
 .dot.status-observed, .lane-track i.status-observed { background: var(--status-safe); }
@@ -1970,9 +1953,18 @@ select.status-attention, option[value='attention'] { color: var(--status-danger)
 
 .screen-stats .metric.unknown { --metric-color: var(--muted); background: #18202a; border-color: var(--border); }
 .screen-stats .metric.caution { --metric-color: #f5bc68; background: #f5bc6810; border-color: #f5bc6840; }
-.readiness-grid .badge.ready, .badge.enabled { color: var(--status-safe); background: #3b82f61a; }
-.readiness-grid .badge.error, .badge.error { color: var(--status-danger); background: #ef44441a; }
+.readiness-grid .badge.ready, .badge.enabled { color: var(--status-safe); }
+.readiness-grid .badge.error, .badge.error { color: var(--status-danger); }
 
 .country-bar-fill { background: var(--status-safe); display: flex; justify-content: flex-end; }
 .country-bar-risk { height: 100%; background: var(--status-danger); }
 .unmapped-summary .status-attention { color: var(--status-danger); }
+
+.server-comparison { display: grid; gap: 16px; }
+.server-comparison-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 13px; }
+.server-comparison-label span { overflow-wrap: anywhere; }
+.server-comparison-label strong { white-space: nowrap; }
+.server-comparison-track { display: flex; height: 16px; margin: 10px 0 6px; overflow: hidden; border-radius: 3px; background: var(--bg); }
+.server-comparison-safe { background: var(--status-safe); }
+.server-comparison-risk { background: var(--status-danger); }
+.server-comparison-row small { color: var(--muted); }

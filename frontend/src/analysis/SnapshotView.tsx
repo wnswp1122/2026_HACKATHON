@@ -1,3 +1,4 @@
+import { serverName } from '../types';
 import { forwardRef, memo } from 'react';
 import { Charts, Metrics } from '../events/Charts';
 import { dateTime, sourceLabel, statusLabels, typeLabels, type Snapshot } from '../types';
@@ -12,7 +13,6 @@ export const SnapshotView = memo(
             <p className="eyebrow">TETRAGON / FROZEN SNAPSHOT</p>
             <h2>보안 관찰 스냅샷</h2>
           </div>
-          <span className="badge frozen">고정 데이터</span>
         </div>
         {import.meta.env.VITE_DATA_LABEL && (
           <p className="mock-label">{import.meta.env.VITE_DATA_LABEL}</p>
@@ -24,7 +24,7 @@ export const SnapshotView = memo(
             <span>(종료 제외)</span>
           </p>
           <p>
-            <b>집계 범위</b> {s.filters.instanceId || '전체 인스턴스'} ·{' '}
+            <b>집계 범위</b> {s.filters.instanceId ? serverName(s.filters.instanceId) : '전체 인스턴스'} ·{' '}
             {s.filters.eventType ? typeLabels[s.filters.eventType] : '전체 유형'} ·{' '}
             {s.filters.status === 'attention'
               ? '위험'
@@ -61,7 +61,7 @@ export const SnapshotView = memo(
               {shown.map((e) => (
                 <tr key={e.eventId}>
                   <td>{dateTime(e.receivedAt)}</td>
-                  <td>{e.instanceId}</td>
+                  <td>{serverName(e.instanceId)}</td>
                   <td>{typeLabels[e.eventType]}</td>
                   <td>{e.source}</td>
                   <td><span className={`badge ${e.status}`}>{statusLabels[e.status]}</span></td>

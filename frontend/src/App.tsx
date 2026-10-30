@@ -1,3 +1,4 @@
+import { serverName } from './types';
 import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { api } from './api';
 import { MonitoringSetup } from './MonitoringSetup';
@@ -5,7 +6,6 @@ import { Detail } from './events/Detail';
 import { Filters, initialSelection } from './events/Filters';
 import { useDashboard } from './events/useDashboard';
 import { routes, useNavigation } from './navigation';
-import { Scope } from './screens/Common';
 import { useResource } from './screens/useResource';
 import {
   dateTime,
@@ -17,6 +17,7 @@ import {
   type Selection,
 } from './types';
 const AnalysisPanel = lazy(() => import('./analysis/AnalysisPanel'));
+const SampleAnalysisPanel = lazy(() => import('./analysis/SampleAnalysisPanel'));
 const Overview = lazy(() => import('./screens/LiveScreens').then((m) => ({ default: m.Overview })));
 const Telemetry = lazy(() =>
   import('./screens/LiveScreens').then((m) => ({ default: m.Telemetry })),
@@ -52,7 +53,7 @@ export default function App() {
   const [scope] = useState(savedScope);
   const [configured, setConfigured] = useState(!!scope);
   const [setupOpen, setSetupOpen] = useState(!scope);
-  const [selection, setSelection] = useState<Selection>(() => ({ ...initialSelection, ...scope })),
+  const [selection, setSelection] = useState<Selection>(() => ({ ...initialSelection, ...scope, period: scope?.source === 'sample' ? '120' : initialSelection.period })),
     [page, setPage] = useState(1),
     [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
@@ -165,7 +166,7 @@ export default function App() {
           setDetailId('');
           setReplayFilters(undefined);
         }
-        choose({ ...initialSelection, instanceId, source });
+        choose({ ...initialSelection, instanceId, source, period: source === 'sample' ? '120' : '60' });
         setConfigured(true);
         setSetupOpen(false);
         setBriefing(undefined);
@@ -201,7 +202,7 @@ export default function App() {
           <div>
             <span className="workspace-badge">L</span>
             <div className="monitoring-scope">
-              <b>{selection.instanceId || '전체 인스턴스'}</b>
+              <b>{selection.instanceId ? serverName(selection.instanceId) : '전체 인스턴스'}</b>
               <small>{sourceLabel(selection.source)}</small>
             </div>
             <button disabled={busy} onClick={() => setSetupOpen(true)}>모니터링 설정</button>
@@ -334,14 +335,15 @@ export default function App() {
           <button ref={analysisCloseRef} aria-label="AI 사이드바 닫기" onClick={closeAnalysis}>×</button>
         </div>
         <div className="ai-sidebar-body">
-          {analysisContext && <Scope filters={analysisContext} />}
           <Suspense fallback={<p role="status">분석 화면 준비 중…</p>}>
-            <AnalysisPanel
+            {(analysisContext?.source || selection.source) === 'sample'
+              ? analysisOpen && <SampleAnalysisPanel key={path} screen={path} filters={analysisContext || selectionFilters(selection)} />
+              : <AnalysisPanel
               selection={selection}
               filters={analysisContext ? safeSnapshotFilters(analysisContext) : undefined}
               onBusy={setBusy}
               onResult={setBriefing}
-            />
+            />}
           </Suspense>
         </div>
       </aside>

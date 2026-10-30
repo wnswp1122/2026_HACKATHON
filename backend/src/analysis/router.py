@@ -12,10 +12,10 @@ from . import service
 from .upstream import get_http_client
 from .validation import MAX_IMAGE_BYTES, fail
 
-router = APIRouter(prefix="/api/snapshots", tags=["analysis"])
+snapshot_router = APIRouter(prefix="/api/snapshots", tags=["analysis"])
 
 
-@router.put("/{snapshot_id}/image", openapi_extra={
+@snapshot_router.put("/{snapshot_id}/image", openapi_extra={
     "requestBody": {"required": True, "content": {
         "image/png": {"schema": {"type": "string", "format": "binary"}},
     }},
@@ -33,12 +33,19 @@ async def put_image(snapshot_id: UUID, request: Request):
     return JSONResponse(body, status_code=status)
 
 
-@router.post("/{snapshot_id}/analysis")
+@snapshot_router.post("/{snapshot_id}/analysis")
 def post_analysis(snapshot_id: UUID, client: Annotated[httpx.Client, Depends(get_http_client)]):
     body, status = service.analyze(snapshot_id, client)
     return JSONResponse(body, status_code=status)
 
 
-@router.get("/{snapshot_id}/analysis")
+@snapshot_router.get("/{snapshot_id}/analysis")
 def read_analysis(snapshot_id: UUID):
     return service.get_analysis(snapshot_id)
+
+
+from .investigation import router as investigation_router
+
+router = APIRouter()
+router.include_router(snapshot_router)
+router.include_router(investigation_router)

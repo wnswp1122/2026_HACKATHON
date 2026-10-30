@@ -156,3 +156,5 @@ curl -s -X POST http://127.0.0.1:18004/__mock/reports
 개요의 3D 지구본은 기존 `GET /api/network` 응답을 사용한다. `location`은 관찰 IP, `serverLocation`은 서버 설정 위치이며 양쪽 좌표가 있을 때만 관계선을 그린다. 좌표가 없으면 추정하지 않고 위치 미확인 목록에 남긴다. 회전/확대와 자동 회전 중지를 지원하고, WebGL 불가 시 목록으로 확인할 수 있다. 국가 경계·참조 구현의 고지는 [THREAT_MAP_NOTICE.md](THREAT_MAP_NOTICE.md)에 보존했다.
 
 위치는 서버의 `DASHBOARD_LOCATIONS_FILE` 설정을 따른다. 임의 해외 위치, 위험도, 접속 성공, 공격 방향을 만들지 않는다. 기존 source 필터와 조회 범위·상한을 그대로 사용한다. 3D 라이브러리는 개요에서 지연 로딩한다. 분석 캡처는 기존 안전 영역을 유지하며 3D 캔버스를 캡처하지 않는다.
+
+현재 UI 보완: 서버 대시보드의 관계 그래프는 제거했다. 추이는 구간 합계가 아닌 초당 평균으로 표시한다. [sample 환산 집계](../docs/service-sample.md)와 [위험 전후 조사 AI](../docs/investigation-ai.md)의 현재 전송·저장·검증 범위를 따른다. 기존 독립 검증 기록은 해당 시점의 결과다.

@@ -1,3 +1,4 @@
+import { serverName } from '../types';
 import { api } from '../api';
 import { Charts } from '../events/Charts';
 import { EventTable } from '../events/EventTable';
@@ -6,14 +7,12 @@ import type { useDashboard } from '../events/useDashboard';
 import { dateTime, number, statusLabels, typeLabels, type PeriodFilters, type Selection } from '../types';
 import {
   ResourceStatus,
-  Scope,
   ServerBars,
   ServerTable,
   Stats,
   Timeline,
 } from './Common';
 import { NetworkGlobe } from './NetworkGlobe';
-import { RelationshipGraph } from './RelationshipGraph';
 import { usePeriodResource } from './useResource';
 
 type Props = {
@@ -26,10 +25,13 @@ type Props = {
 };
 function LiveStatus({ live }: Pick<Props, 'live'>) {
   return (
-    <ResourceStatus
-      label="전체 집계·목록"
-      resource={{ ...live, data: live.data, successAt: live.data?.successAt }}
-    />
+    <>
+      <ResourceStatus label="전체 집계·목록" resource={{ ...live, data: live.data, successAt: live.data?.successAt }} />
+      {live.data?.dashboard.simulation && <p className="hint" role="note">
+        sample 환산 집계 · 대표 원본 {number(live.data.dashboard.simulation.representativeEvents)}건으로 활동 규모를 표현합니다.
+        상세 목록·관계·조사·AI 분석은 대표 원본 기준입니다.
+      </p>}
+    </>
   );
 }
 const fetchRiskEvents = (filters: PeriodFilters, signal: AbortSignal) =>
@@ -44,7 +46,7 @@ export function Overview(props: Props) {
       .every((key) => risks.data!.filters[key] === data.filters[key]) &&
     (props.selection.period !== 'custom' ||
       (risks.data.filters.from === data.filters.from && risks.data.filters.to === data.filters.to));
-  const riskCount = sameRiskScope ? risks.data!.value.total : data?.dashboard.attention || 0;
+  const riskCount = data?.dashboard.attention || 0;
   return (
     <>
       <LiveStatus live={props.live} />
@@ -62,7 +64,7 @@ export function Overview(props: Props) {
               {risks.data!.value.items.slice(0, 4).map((event) => (
                 <button className="risk-event" key={event.eventId} onClick={() => props.onDetail(event.eventId)}>
                   <time title={dateTime(event.receivedAt)}>{new Date(event.receivedAt).toLocaleTimeString('ko-KR', { hour12: false })}</time>
-                  <span>{event.instanceId}</span>
+                  <span>{serverName(event.instanceId)}</span>
                   <span>{describeEvent(event)}</span>
                   <span className="badge attention">상세 보기 →</span>
                 </button>
@@ -74,7 +76,6 @@ export function Overview(props: Props) {
       <ResourceStatus resource={network} label="네트워크" />
       {network.data && (
         <>
-          <Scope filters={network.data.filters} />
           <NetworkGlobe
             data={network.data.value}
             status={network.data.filters.status}
@@ -88,7 +89,7 @@ export function Overview(props: Props) {
           <Stats items={[
             { label: '관찰 이벤트', value: data.dashboard.total },
             { label: '안전', value: data.dashboard.total - data.dashboard.attention, tone: 'safe' },
-            { label: '위험', value: data.dashboard.attention, tone: data.dashboard.attention ? 'warning' : '' },
+            { label: '전체 위험 이벤트', value: data.dashboard.attention, tone: data.dashboard.attention ? 'warning' : '' },
             { label: '네트워크 이벤트', value: network.data?.value.totalNetworkEvents ?? '—' },
           ]} />
         </>
@@ -98,7 +99,7 @@ export function Overview(props: Props) {
           <Timeline dashboard={data.dashboard} />
           <article className="panel recent-events overview-logs">
             <div className="panel-heading">
-              <h3>최근 이벤트</h3>
+              <h3>{data.dashboard.simulation ? '최근 대표 이벤트' : '최근 이벤트'}</h3>
               <div className="log-actions">
                 <span>{Math.min(6, data.events.items.length)}건</span>
                 <button
@@ -115,12 +116,12 @@ export function Overview(props: Props) {
                   {data.events.items.slice(0, 6).map((event) => (
                     <tr key={event.eventId} className={event.status === 'attention' ? 'log-attention' : ''}>
                       <td title={dateTime(event.receivedAt)}>{new Date(event.receivedAt).toLocaleTimeString('ko-KR', { hour12: false })}</td>
-                      <td>{event.instanceId}</td>
+                      <td>{serverName(event.instanceId)}</td>
                       <td>{typeLabels[event.eventType]}</td>
                       <td>{event.policyName || '—'}</td>
                       <td><span className={`badge ${event.source}`}>{event.source}</span></td>
                       <td><span className={`badge ${event.status}`}>{statusLabels[event.status]}</span></td>
-                      <td><button aria-label={`${event.instanceId} ${typeLabels[event.eventType]} 이벤트 상세`} onClick={() => props.onDetail(event.eventId)}>보기</button></td>
+                      <td><button aria-label={`${serverName(event.instanceId)} ${typeLabels[event.eventType]} 이벤트 상세`} onClick={() => props.onDetail(event.eventId)}>보기</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -139,14 +140,12 @@ export function Telemetry(props: Props) {
   return (
     <>
       <LiveStatus live={props.live} />
-      {data && <Scope filters={data.filters} compact />}
       <div className="telemetry-grid">
         <div className="stack">
           {data && <Timeline dashboard={data.dashboard} explain />}
           <ResourceStatus resource={servers} label="서버별 집계" />
           {servers.data && (
             <>
-              <Scope filters={servers.data.filters} compact />
               <ServerTable
                 items={servers.data.value.items}
                 onSelect={(id) => props.onSelection({ ...props.selection, instanceId: id })}
@@ -168,14 +167,12 @@ export function Telemetry(props: Props) {
 }
 export function ServersScreen(props: Props) {
   const servers = usePeriodResource(api.servers, props.selection, props.refresh);
-  const graph = usePeriodResource(api.graph, props.selection, props.refresh);
   const { data } = props.live;
   return (
     <>
       <LiveStatus live={props.live} />
       {data && (
         <>
-          <Scope filters={data.filters} />
           <Stats
             items={[
               {
@@ -193,8 +190,8 @@ export function ServersScreen(props: Props) {
                 value: servers.data?.value.items.length ?? '미확인',
               },
               {
-                label: '격리·차단 성공',
-                value: '미확인',
+                label: data.filters.source === 'sample' ? '격리·차단 성공 · 시연' : '격리·차단 성공',
+                value: data.filters.source === 'sample' ? '확인' : '미확인',
                 tone: 'amber-tile',
               },
             ]}
@@ -202,7 +199,6 @@ export function ServersScreen(props: Props) {
         </>
       )}
       <ResourceStatus resource={servers} label="서버 분포" />
-      {servers.data && <Scope filters={servers.data.filters} />}
       <div className="server-dashboard-grid">
         <div className="stack">
           {servers.data && (
@@ -218,15 +214,7 @@ export function ServersScreen(props: Props) {
         <div className="stack">
           {data && <Charts data={data.dashboard} />}
         </div>
-        <div className="stack server-relationships">
-          <ResourceStatus resource={graph} label="프로세스·통신 관계" />
-          {graph.data && (
-            <>
-              <Scope filters={graph.data.filters} />
-              <RelationshipGraph graph={graph.data.value} />
-            </>
-          )}
-        </div>
+
       </div>
     </>
   );

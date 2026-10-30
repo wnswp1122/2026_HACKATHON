@@ -50,3 +50,11 @@ CREATE TABLE IF NOT EXISTS replays (
     created_at timestamptz NOT NULL,
     payload jsonb NOT NULL
 );
+
+-- 고정 조사와 이벤트별 AI 결과. Replay payload/기존 Snapshot은 수정하지 않는다.
+CREATE TABLE IF NOT EXISTS replay_analyses (
+    replay_id uuid NOT NULL REFERENCES replays(replay_id),
+    focus_key text NOT NULL,
+    response jsonb NOT NULL,
+    PRIMARY KEY (replay_id, focus_key)
+);

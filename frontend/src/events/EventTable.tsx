@@ -1,3 +1,4 @@
+import { serverName } from '../types';
 import { statusLabels, dateTime, number, typeLabels, type EventPage } from '../types';
 export function EventTable({
   events,
@@ -15,7 +16,7 @@ export function EventTable({
     <section id="events" className="panel events">
       <div className="panel-heading">
         <h3>런타임 이벤트</h3>
-        <span>전체 {number(events.total)}건 · 수신 시각 내림차순</span>
+        <span>{events.items.some((e) => e.source === 'sample') ? '대표 원본' : '전체'} {number(events.total)}건 · 수신 시각 내림차순</span>
       </div>
       <div className="table-scroll">
         <table>
@@ -37,7 +38,7 @@ export function EventTable({
                   {dateTime(e.receivedAt)}
                   <small>발생 {dateTime(e.occurredAt)}</small>
                 </td>
-                <td>{e.instanceId}</td>
+                <td>{serverName(e.instanceId)}</td>
                 <td>{typeLabels[e.eventType]}</td>
                 <td className="binary" title={e.process.binary || ''}>
                   {e.process.binary || '미확인'}

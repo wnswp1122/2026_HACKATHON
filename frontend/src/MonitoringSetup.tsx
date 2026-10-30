@@ -1,3 +1,4 @@
+import { serverName } from './types';
 import { useState } from 'react';
 import { routes } from './navigation';
 import type { Instance, Selection, Source } from './types';
@@ -26,8 +27,8 @@ export function MonitoringSetup({ selection, instances, loading, error, onRetry,
           <label htmlFor="setup-instance">인스턴스 <span>· 모니터링 대상 서버</span></label>
           <select id="setup-instance" value={instanceId} onChange={(event) => setInstanceId(event.target.value)}>
             <option value="">전체 인스턴스</option>
-            {instanceId && !instances.some((item) => item.instanceId === instanceId) && <option value={instanceId}>{instanceId}</option>}
-            {instances.map((item) => <option key={item.instanceId}>{item.instanceId}</option>)}
+            {instanceId && !instances.some((item) => item.instanceId === instanceId) && <option value={instanceId}>{serverName(instanceId)}</option>}
+            {instances.map((item) => <option key={item.instanceId}>{serverName(item.instanceId)}</option>)}
           </select>
           {error ? <div role="alert" className="error-text">서버 목록 조회 실패 · {error} <button type="button" onClick={onRetry}>다시 조회</button></div>
             : loading ? <p role="status">서버 목록을 불러오는 중…</p>

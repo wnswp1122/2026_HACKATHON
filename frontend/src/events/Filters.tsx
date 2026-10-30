@@ -20,7 +20,7 @@ export const initialSelection: Selection = {
   ...(import.meta.env.VITE_PRESENTATION_INSTANCE
     ? { instanceId: import.meta.env.VITE_PRESENTATION_INSTANCE }
     : {}),
-  period: '60',
+  period: import.meta.env.VITE_PRESENTATION_INSTANCE ? '120' : '60',
   from: localInput(Date.now() - 3600_000),
   to: localInput(Date.now()),
 };
@@ -62,7 +62,7 @@ export function Filters({
     };
   }, [timePicker]);
   const periods = [
-    ['15', '최근 15분'], ['60', '최근 1시간'],
+    ['15', '최근 15분'], ['60', '최근 1시간'], ['120', '최근 2시간'],
     ['360', '최근 6시간'], ['1440', '최근 24시간'],
   ];
   const rangeText = range ? `${dateTime(range.from)} — ${dateTime(range.to)}` : '조회 중…';
@@ -147,6 +147,7 @@ export function Filters({
           >
             <option value="15">최근 15분</option>
             <option value="60">최근 1시간</option>
+            <option value="120">최근 2시간</option>
             <option value="360">최근 6시간</option>
             <option value="1440">최근 24시간</option>
             <option value="custom">시점 직접 선택</option>

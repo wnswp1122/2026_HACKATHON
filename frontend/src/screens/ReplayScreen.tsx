@@ -1,6 +1,7 @@
+import { serverName } from '../types';
 import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../api';
-import { describeEvent } from '../events/describeEvent';
+import { useInvestigationAnalysis } from './useInvestigationAnalysis';
 import {
   dateTime,
   eventTypes,
@@ -8,11 +9,18 @@ import {
   typeLabels,
   statusLabels,
   sourceLabel,
+  type Event,
   type PeriodFilters,
   type Replay,
   type Selection,
 } from '../types';
-import { Scope, Stats } from './Common';
+import { Stats } from './Common';
+
+function eventLabel(event: Event): string {
+  const process = event.process.binary?.split('/').at(-1) || '미확인';
+  const target = event.file?.path || event.target;
+  return `${typeLabels[event.eventType]} · ${process}${target ? ` · ${target}` : ''}`;
+}
 
 export function ReplayScreen({
   selection,
@@ -46,6 +54,13 @@ export function ReplayScreen({
     ) ??
     -1;
   const current = replay?.events[currentIndex];
+  const riskAnalysis = useInvestigationAnalysis(replay?.replayId);
+  const selectedAnalysis = useInvestigationAnalysis(replay?.replayId, current?.eventId);
+
+  const sampleReplay = replay?.filters.source === 'sample' || !!replay?.events.length && replay.events.every((event) => event.source === 'sample');
+  useEffect(() => {
+    if (sampleReplay && replay) void riskAnalysis.run();
+  }, [replay?.replayId, sampleReplay]);
   useEffect(() => {
     mounted.current = true;
     const restored = new URLSearchParams(location.search).get('replay');
@@ -146,11 +161,7 @@ export function ReplayScreen({
       {error && <div className="error-banner" role="alert">{error}</div>}
       {!replay ? <div className="panel empty">조사를 시작하면 같은 시점에 고정된 이벤트를 확인할 수 있습니다.</div> : (
         <>
-          <Scope filters={replay.filters} />
-          <div className="scope-chips">
-            <span className="status-chip">고정된 조사 기록</span>
-            {replay.truncated && <span className="status-chip caution">일부 이벤트만 표시</span>}
-          </div>
+          {replay.truncated && <p className="hint">일부 이벤트만 표시</p>}
           <Stats items={[
             { label: '전체 수신 이벤트', value: replay.total },
             { label: '시간순 조사 이벤트', value: replay.events.length },
@@ -158,21 +169,26 @@ export function ReplayScreen({
             { label: '발생 시각 미확인', value: replay.undatedCount, tone: 'unknown' },
           ]} />
           <article className="panel investigation-risks">
-            <div className="panel-heading"><h3>먼저 확인할 위험 이벤트</h3><span>{riskEvents.length}건</span></div>
+            <div className="panel-heading"><h3>먼저 확인할 위험 이벤트</h3><span>{riskEvents.length ? '대표 1건' : '0건'}</span>
+              {riskEvents.length > 0 && <button disabled={riskAnalysis.loading} onClick={() => void riskAnalysis.run()}>{riskAnalysis.loading ? '요약 중…' : sampleReplay ? '요약 보기' : riskAnalysis.data ? '저장된 AI 요약 다시 보기' : 'AI로 위험 이벤트 요약'}</button>}
+            </div>
+            {riskEvents.length > 0 && !sampleReplay && <p className="hint">위험 이벤트 최대 20건의 제한된 요약 정보를 Gemini에 전송합니다. 전체 경로·IP·원본 인자는 제외합니다.</p>}
+            {riskAnalysis.error && <p className="error-text" role="alert">{riskAnalysis.error}</p>}
+            {riskAnalysis.data && <p className="hint">{sampleReplay ? '이벤트 요약' : `AI 요약 · ${riskAnalysis.data.model}`} · {dateTime(riskAnalysis.data.createdAt)}</p>}
             {riskEvents.length ? <div className="risk-anchor-list">
-              {riskEvents.map(({ event, index }) => (
+              {riskEvents.slice(0, 1).map(({ event, index }) => (
                 <button key={event.eventId} className="risk-anchor" aria-pressed={currentIndex === index} onClick={() => focus(index)}>
                   <span className="badge attention">위험</span>
                   <time>{new Date(event.occurredAt!).toLocaleTimeString('ko-KR', { hour12: false })}</time>
-                  <strong>{describeEvent(event)}</strong>
-                  <small>{event.instanceId}{event.policyName ? ` · ${event.policyName}` : ''}</small>
+                  <strong>{riskAnalysis.data?.result.summaries.find((item) => item.eventId === event.eventId)?.summary || eventLabel(event)}</strong>
+                  <small>{serverName(event.instanceId)}{event.policyName ? ` · ${event.policyName}` : ''}</small>
                 </button>
               ))}
             </div> : <p className="empty">고정된 시간순 기록에 위험 이벤트가 없습니다. 아래에서 일반 이벤트의 흐름을 확인할 수 있습니다.</p>}
           </article>
           <div className="investigation-grid">
             <article className="panel investigation-context">
-              <div className="panel-heading"><h3>이벤트 전후 흐름</h3><span>{current?.instanceId} · 발생 시각순</span></div>
+              <div className="panel-heading"><h3>이벤트 전후 흐름</h3><span>{current ? serverName(current.instanceId) : ''} · 발생 시각순</span></div>
               <div className="investigation-step-controls">
                 <button disabled={serverIndex <= 0} onClick={() => step(-1)}>← 이전 이벤트</button>
                 <span>{serverEvents.length ? serverIndex + 1 : 0} / {serverEvents.length}</span>
@@ -184,7 +200,7 @@ export function ReplayScreen({
                     <button className={`event-story status-${event.status}`} aria-pressed={index === currentIndex} onClick={() => focus(index)}>
                       <time>{new Date(event.occurredAt!).toLocaleTimeString('ko-KR', { hour12: false })}</time>
                       <span className={`badge ${event.status}`}>{statusLabels[event.status]}</span>
-                      <strong>{describeEvent(event)}</strong>
+                      <strong>{eventLabel(event)}</strong>
                     </button>
                   </li>;
                 })}
@@ -192,9 +208,21 @@ export function ReplayScreen({
               {!contextEvents.length && <p className="empty">발생 시각이 있는 이벤트가 없습니다.</p>}
             </article>
             {current && <article className="panel investigation-selected" data-event-id={current.eventId}>
-              <div className="panel-heading"><h3>선택한 이벤트</h3><span className={`badge ${current.status}`}>{statusLabels[current.status]}</span></div>
-              <p className="event-narrative">{describeEvent(current)}</p>
-              <p className="event-narrative-context">{current.instanceId} · {sourceLabel(current.source)}</p>
+              <div className="panel-heading"><h3>{sampleReplay ? '선택 이벤트 분석' : '선택 이벤트 AI 분석'}</h3><span className={`badge ${current.status}`}>{statusLabels[current.status]}</span></div>
+              <p className="event-narrative-context">{eventLabel(current)}</p>
+              <button className="primary" disabled={selectedAnalysis.loading} onClick={() => void selectedAnalysis.run()}>{selectedAnalysis.loading ? '분석 중…' : sampleReplay ? '분석 보기' : selectedAnalysis.data ? '저장된 분석 다시 보기' : '이 이벤트 AI 분석'}</button>
+              {!sampleReplay && <p className="hint">선택 이벤트와 같은 서버의 앞뒤 3건을 Gemini로 분석합니다. 전체 경로·IP·원본 인자는 제외합니다.</p>}
+              {selectedAnalysis.error && <p className="error-text" role="alert">{selectedAnalysis.error}</p>}
+              {selectedAnalysis.data && <section className="investigation-ai-result" aria-label="선택 이벤트 AI 분석 결과">
+                <p className="event-narrative">{selectedAnalysis.data.result.summaries[0]?.summary}</p>
+                {(['facts', 'hypotheses', 'checks', 'limitations'] as const).map((key, index) => (
+                  <div key={key}><h4>{['관찰된 사실', '가능한 해석', '다음 확인 사항', '분석의 한계'][index]}</h4>
+                    <ul>{selectedAnalysis.data!.result[key].map((text, i) => <li key={i}>{text}</li>)}</ul>
+                  </div>
+                ))}
+                <small>{sampleReplay ? '' : `${selectedAnalysis.data.model} · `}{dateTime(selectedAnalysis.data.createdAt)}</small>
+              </section>}
+              <p className="event-narrative-context">{serverName(current.instanceId)} · {sourceLabel(current.source)}</p>
               <p className="event-narrative-context">{dateTime(current.occurredAt)}</p>
               {current.status === 'attention' && <div className="investigation-reason">
                 <b>위험으로 분류된 이유</b>
@@ -233,14 +261,14 @@ export function ReplayScreen({
             {eventTypes.map((type) => <div className="lane-row" key={type}>
               <span>{typeLabels[type]}</span>
               <div className="lane-track">
-                {replay.events.filter((event) => event.eventType === type).map((event) => <i key={event.eventId} className={`status-${event.status}`} style={{ left: `${duration ? ((Date.parse(event.occurredAt!) - start) / duration) * 99 : 0}%` }} title={describeEvent(event)} />)}
+                {replay.events.filter((event) => event.eventType === type).map((event) => <i key={event.eventId} className={`status-${event.status}`} style={{ left: `${duration ? ((Date.parse(event.occurredAt!) - start) / duration) * 99 : 0}%` }} title={eventLabel(event)} />)}
                 <b style={{ left: `${duration ? (position / duration) * 99 : 0}%` }} />
               </div>
             </div>)}
           </details>
           <div className="investigation-footer">
             <button onClick={() => onTelemetry(replay.filters)}>같은 범위의 전체 이벤트 탐색</button>
-            {replay.undatedCount > 0 && <span className="status-chip caution">발생 시각 미확인 {replay.undatedCount}건은 목록에서 확인</span>}
+            {replay.undatedCount > 0 && <span className="hint">발생 시각 미확인 {replay.undatedCount}건은 목록에서 확인</span>}
           </div>
         </>
       )}

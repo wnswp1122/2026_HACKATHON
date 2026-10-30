@@ -48,7 +48,7 @@ export function NetworkGlobe({ data, status, disabled, onStatusChange }: Props) 
   return (
     <article className="panel globe-card overview-network" data-status={status || 'all'}>
       <div className="panel-heading">
-        <h3>네트워크 관찰 지도</h3>
+        <h3>{status === 'attention' ? '위험 네트워크 관찰 지도' : '네트워크 관찰 지도'}</h3>
         <div className="network-status-filter" role="group" aria-label="이벤트 상태 필터">
           <button aria-pressed={!status} disabled={disabled} onClick={() => onStatusChange(undefined)}>
             전체 상태
@@ -63,7 +63,7 @@ export function NetworkGlobe({ data, status, disabled, onStatusChange }: Props) 
         <div className="network-map">
           <div className="globe-controls">
             <button aria-label="지구본 서쪽 회전" onClick={() => setCenter(([lat, lon]) => [lat, lon - 45])}>← 회전</button>
-            <span className="status-chip">네트워크 {number(data.totalNetworkEvents)}건</span>
+            <span className="hint">네트워크 {number(data.totalNetworkEvents)}건</span>
             <button aria-label="지구본 동쪽 회전" onClick={() => setCenter(([lat, lon]) => [lat, lon + 45])}>회전 →</button>
           </div>
           <Suspense fallback={<div className="network-globe-loading" role="status">지구본 불러오는 중…</div>}>
@@ -102,7 +102,7 @@ export function NetworkGlobe({ data, status, disabled, onStatusChange }: Props) 
             <span>위치 미등록</span><b>{number(data.unmappedCount)}건</b>
           </div>
           {unknownCountry > 0 && <div className="country-unknown"><span>국가 미등록{data.truncated && !data.countries ? ' · 표시 연결' : ''}</span><b>{number(unknownCountry)}건</b></div>}
-          {data.truncated && <span className="status-chip caution">연결 {data.limit}개 표시{data.countries ? ' · 국가 집계 전체' : ' · 국가 집계 일부'}</span>}
+          {data.truncated && <span className="hint">연결 {data.limit}개 표시{data.countries ? ' · 국가 집계 전체' : ' · 국가 집계 일부'}</span>}
         </section>
       </div>
     </article>

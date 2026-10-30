@@ -56,7 +56,7 @@ def event_detail(eventId: UUID):
 def dashboard(filters: Annotated[QueryFilters, Query()]):
     with get_connection() as conn:
         conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-        return read_dashboard(conn, filters)
+        return read_dashboard(conn, filters, simulate_sample=True)
 
 
 router.include_router(screens_router, dependencies=[Depends(single_query_values)])

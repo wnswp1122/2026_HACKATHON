@@ -4,6 +4,12 @@
 
 게시판·Tetragon·전송기·SaaS 수신/조회/AI·프론트의 7개 기능 워크트리를 통합했다. 실제 PostgreSQL과 연결한 5개 화면, 리플레이, 안전 스냅샷·PNG 업로드를 확인했다. 신규 AI 분석은 Gemini API를 사용하며, 실제 제공자 호출은 서버의 `GEMINI_API_KEY`·`GEMINI_MODEL` 설정 후 별도로 확인해야 한다. 상세 범위는 [통합 계획과 검증 기록](worklog/integration-merge.md)을 따른다.
 
+## 시연 스크립트 빠른 실행
+
+발표용 데이터로 지구본까지 확인하려면 `./scripts/presentation.py`를 실행한다. 전용 화면을 열고 실제 SaaS API에 sample 이벤트 14건을 단계별로 넣는다. [발표 시나리오 실행법](docs/presentation.md)을 참고한다.
+
+준비된 VM에서 `./scripts/demo.py status`, `./scripts/demo.py file`, `./scripts/demo.py network`로 실행한다. 최초 관찰 정책은 `./scripts/demo.py observe`, 대응·복구 시연은 `./scripts/demo.py enforce`다. [실행 전제와 전체 명령](docs/demo-quickstart.md)을 확인한다. 이 도구는 개별 probe 실행용이며 SaaS·화면까지 자동 검증하는 통합 실행기는 아직 계획 단계다.
+
 ## 담당과 시작 문서
 
 | 담당 | 개발 범위 | 시작 문서 |
