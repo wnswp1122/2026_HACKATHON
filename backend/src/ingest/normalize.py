@@ -41,7 +41,7 @@ def normalize(envelope: Envelope, event_id: str, received_at: datetime,
     policy_name = text(event.get("policy_name")) if variants == ["process_kprobe"] else None
     reported_action = text(event.get("action")) if variants == ["process_kprobe"] else None
     file = mapped_file(event) if variants == ["process_kprobe"] else None
-    network = mapped_network(event) if variants == ["process_kprobe"] else None
+    network = mapped_network(event, sample=envelope.source == "sample") if variants == ["process_kprobe"] else None
     target = None
     if file is not None:
         event_type, target = "FILE_ACCESS", file["path"]
