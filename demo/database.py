@@ -4,6 +4,20 @@ from contextlib import contextmanager
 from settings import database_path
 
 
+def initialize():
+    with connection() as db:
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                createdAt TEXT NOT NULL,
+                updatedAt TEXT NOT NULL
+            )
+        """)
+
+
 @contextmanager
 def connection():
     path = database_path()

@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir -r requirements.lock \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --no-create-home app \
     && mkdir /data && chown app:app /data
-COPY server.py settings.py database.py ./
+COPY server.py settings.py database.py posts.py ./
 USER app
 EXPOSE 8080
 CMD ["python", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
