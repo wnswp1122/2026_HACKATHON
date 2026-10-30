@@ -1,0 +1,179 @@
+{
+  "startedAt": "2026-10-30T19:37:01.614555+00:00",
+  "finishedAt": "2026-10-30T19:37:02.316096+00:00",
+  "source": "live manual HTTP requests; no event forwarding",
+  "policyBefore": {
+    "name": "hack-demo-observe",
+    "state": "TP_STATE_ENABLED",
+    "mode": "TP_MODE_MONITOR_ONLY",
+    "id": "2"
+  },
+  "policyAfter": {
+    "name": "hack-demo-observe",
+    "state": "TP_STATE_ENABLED",
+    "mode": "TP_MODE_MONITOR_ONLY",
+    "id": "2"
+  },
+  "mountNamespaces": {
+    "hack-demo": "mnt:[4026532395]",
+    "hack-board-dev": "mnt:[4026532323]"
+  },
+  "scope": "hack-board-dev CRUD coexists with policy targeting hack-demo probe; same-target CRUD unverified",
+  "http": {
+    "steps": [
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/openapi.json",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "POST",
+        "path": "/posts",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts/4",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 18081,
+        "method": "PATCH",
+        "path": "/posts/4",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts/4",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts/4",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "DELETE",
+        "path": "/posts/4",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts/4",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 18081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      }
+    ],
+    "createdPostId": 4,
+    "generatedMarker": "board-observe-22d9ef88-348b-4670-aae5-358488947c13",
+    "ownPostCleaned": true,
+    "baselinePostCount": 1,
+    "remainingPostCount": 1,
+    "preexistingPostsUnchanged": true
+  }
+}

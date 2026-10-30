@@ -1,0 +1,194 @@
+{
+  "startedAt": "2026-10-30T19:40:44.425921+00:00",
+  "finishedAt": "2026-10-30T19:40:45.010584+00:00",
+  "source": "live manual HTTP requests; no event forwarding",
+  "policiesBefore": [
+    {
+      "name": "hack-demo-network",
+      "state": "TP_STATE_ENABLED",
+      "mode": "TP_MODE_MONITOR_ONLY",
+      "id": "4"
+    },
+    {
+      "name": "hack-demo-observe",
+      "state": "TP_STATE_ENABLED",
+      "mode": "TP_MODE_MONITOR_ONLY",
+      "id": "3"
+    }
+  ],
+  "policiesAfter": [
+    {
+      "name": "hack-demo-network",
+      "state": "TP_STATE_ENABLED",
+      "mode": "TP_MODE_MONITOR_ONLY",
+      "id": "4"
+    },
+    {
+      "name": "hack-demo-observe",
+      "state": "TP_STATE_ENABLED",
+      "mode": "TP_MODE_MONITOR_ONLY",
+      "id": "3"
+    }
+  ],
+  "container": {
+    "name": "hack-demo",
+    "owner": "2026-hack-tetragon-runtime",
+    "image": "hack-demo:tetragon-runtime",
+    "imageId": "sha256:3a783171c3a0fbe422681254ac1897ba84782adccfbed86444247a17dbace094",
+    "id": "f6f2331701519b03ec2404835d43576fab4d79ade0fbc6606e34ad7e2da1ea99",
+    "mountNamespace": "mnt:[4026532395]",
+    "preservedVolume": "hack-tetragon-board-data",
+    "probeMountReadOnly": true
+  },
+  "scope": "same-container CRUD under enabled file/network Post observation; probe events/network results not independently verified here",
+  "http": {
+    "steps": [
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/openapi.json",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "POST",
+        "path": "/posts",
+        "status": 201,
+        "expected": 201
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts/1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 422,
+        "expected": 422
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts/1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts/1",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "DELETE",
+        "path": "/posts/1",
+        "status": 204,
+        "expected": 204
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts/1",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "port": 8081,
+        "method": "PATCH",
+        "path": "/posts/1",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "port": 8081,
+        "method": "DELETE",
+        "path": "/posts/1",
+        "status": 404,
+        "expected": 404
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/posts",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "port": 8081,
+        "method": "GET",
+        "path": "/health",
+        "status": 200,
+        "expected": 200
+      }
+    ],
+    "createdPostId": 1,
+    "generatedMarker": "board-same-target-2b8f3440-1c63-45da-b11f-f501b5bcf8ef",
+    "ownPostCleaned": true,
+    "baselinePostCount": 0,
+    "remainingPostCount": 0,
+    "preexistingPostsUnchanged": true
+  }
+}

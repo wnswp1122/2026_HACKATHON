@@ -1,0 +1,38 @@
+# Tetragon v1.8.0 / Ubuntu ARM64 kernel 6.8.0-142-generic.
+# runtime.py가 현재 hack-demo의 Mnt namespace를 치환한 뒤 적용한다.
+# security_file_permission(struct file *file, int mask): arg0=file, arg1=MAY_READ(4).
+# 별도 probe 실행파일 AND 현재 컨테이너 Mnt AND 고정 파일 AND 읽기만 대응.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: hack-demo-observe
+spec:
+  kprobes:
+  - call: security_file_permission
+    syscall: false
+    args:
+    - index: 0
+      type: file
+    - index: 1
+      type: int
+    selectors:
+    - matchBinaries:
+      - operator: In
+        values:
+        - /usr/local/bin/hack-demo-probe
+      matchNamespaces:
+      - namespace: Mnt
+        operator: In
+        values:
+        - "__HACK_DEMO_MNT_NS__"
+      matchArgs:
+      - index: 0
+        operator: Equal
+        values:
+        - /tmp/hack-demo/protected.txt
+      - index: 1
+        operator: Equal
+        values:
+        - "4"
+      matchActions:
+      - action: Post

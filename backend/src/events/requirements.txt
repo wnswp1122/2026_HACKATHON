@@ -1,0 +1,2 @@
+# backend/requirements.txt에 추가로 필요한 PostgreSQL 드라이버.
+psycopg[binary]==3.3.6

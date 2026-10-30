@@ -1,0 +1,1 @@
+{"observedAt":"2026-10-30T19:43:57.733792Z","collector":{"state":"unknown","errorCode":"SENSOR_STATUS_UNSUPPORTED"},"tetragon":{"reachable":true,"version":"1.8.0","sensors":[],"policies":[{"name":"hack-demo-observe","state":"enabled","error":null},{"name":"hack-demo-network","state":"enabled","error":null}]}}

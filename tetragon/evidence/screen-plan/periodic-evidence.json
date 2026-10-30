@@ -1,0 +1,77 @@
+{
+  "intervalSeconds": 30,
+  "samples": [
+    {
+      "observedAt": "2026-10-30T19:47:15.362264Z",
+      "collector": {
+        "state": "unknown",
+        "errorCode": "SENSOR_STATUS_UNSUPPORTED"
+      },
+      "tetragon": {
+        "reachable": true,
+        "version": "1.8.0",
+        "sensors": [],
+        "policies": [
+          {
+            "name": "hack-demo-observe",
+            "state": "enabled",
+            "error": null
+          },
+          {
+            "name": "hack-demo-network",
+            "state": "enabled",
+            "error": null
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-30T19:47:45.295438Z",
+      "collector": {
+        "state": "unknown",
+        "errorCode": "SENSOR_STATUS_UNSUPPORTED"
+      },
+      "tetragon": {
+        "reachable": true,
+        "version": "1.8.0",
+        "sensors": [],
+        "policies": [
+          {
+            "name": "hack-demo-observe",
+            "state": "enabled",
+            "error": null
+          },
+          {
+            "name": "hack-demo-network",
+            "state": "enabled",
+            "error": null
+          }
+        ]
+      }
+    }
+  ],
+  "readCount": 2471,
+  "parseErrors": 0,
+  "observedIntervals": [
+    29.933174
+  ],
+  "duplicate": {
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "COLLECTOR_ALREADY_RUNNING\n"
+  },
+  "collectorExitCode": 0,
+  "stopped": {
+    "observedAt": "2026-10-30T19:47:45.334428Z",
+    "collector": {
+      "state": "error",
+      "errorCode": "COLLECTOR_STOPPED"
+    },
+    "tetragon": {
+      "reachable": null,
+      "version": null,
+      "sensors": [],
+      "policies": []
+    }
+  }
+}

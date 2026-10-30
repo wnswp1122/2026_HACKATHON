@@ -1,0 +1,5 @@
+# 공통 requirements는 core 소유. 모듈 검증 환경은 requirements.lock으로 재현한다.
+-r ../../requirements.txt
+pydantic>=2.9,<3
+psycopg[binary]>=3.2,<4
+Pillow>=12,<14

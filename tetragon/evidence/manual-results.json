@@ -1,0 +1,178 @@
+[
+  {
+    "stage": "baseline-policy",
+    "time": "2026-10-30T18:26:10.361349+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "off"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-observe\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "baseline-probe",
+    "time": "2026-10-30T18:26:10.500219+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=36 time=2026-10-30T18:26:12.518155+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "baseline-health",
+    "time": "2026-10-30T18:26:10.722717+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "observe-policy",
+    "time": "2026-10-30T18:26:11.780463+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "observe"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/observe.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n3    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=observe mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "observe-probe",
+    "time": "2026-10-30T18:26:11.903035+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=54 time=2026-10-30T18:26:13.927083+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "observe-health",
+    "time": "2026-10-30T18:26:12.132750+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enforce-policy",
+    "time": "2026-10-30T18:26:13.372262+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "enforce"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-observe\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/enforce.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE      NPOST   NENFORCE   NMONITOR\n4    hack-demo-enforce   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      enforce   0       0          0\nAPPLIED mode=enforce mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enforce-probe",
+    "time": "2026-10-30T18:26:13.497890+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 137,
+    "stdout": "PROBE_START pid=72 time=2026-10-30T18:26:15.522733+00:00\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enforce-health",
+    "time": "2026-10-30T18:26:13.755932+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enforce-other-binary",
+    "time": "2026-10-30T18:26:13.837862+00:00",
+    "command": [
+      "docker",
+      "exec",
+      "hack-demo",
+      "python",
+      "-I",
+      "-c",
+      "print(open('/tmp/hack-demo/protected.txt').read())"
+    ],
+    "exitCode": 0,
+    "stdout": "demo-only\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enforce-other-file",
+    "time": "2026-10-30T18:26:13.905139+00:00",
+    "command": [
+      "docker",
+      "exec",
+      "hack-demo",
+      "/usr/local/bin/hack-demo-probe",
+      "-I",
+      "-c",
+      "print('NON_TARGET_READ_OK', len(open('/opt/hack-demo-probe/probe.py').read()))"
+    ],
+    "exitCode": 0,
+    "stdout": "NON_TARGET_READ_OK 663\n",
+    "stderr": ""
+  },
+  {
+    "stage": "released-policy",
+    "time": "2026-10-30T18:26:14.428532+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "off"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-enforce\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "released-probe",
+    "time": "2026-10-30T18:26:14.547500+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=96 time=2026-10-30T18:26:16.574583+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "released-health",
+    "time": "2026-10-30T18:26:14.788918+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  }
+]

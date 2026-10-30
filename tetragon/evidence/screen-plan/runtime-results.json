@@ -1,0 +1,271 @@
+[
+  {
+    "stage": "owned-demo-stop-for-CRUD-image",
+    "recordedAt": "2026-10-30T19:39:39.352518+00:00",
+    "command": [
+      "docker",
+      "stop",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "owned-demo-remove-keep-volume",
+    "recordedAt": "2026-10-30T19:39:39.437088+00:00",
+    "command": [
+      "docker",
+      "rm",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "prepare-CRUD-image-preserving-volume",
+    "recordedAt": "2026-10-30T19:39:40.307668+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "prepare"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon-board-data\nf6f2331701519b03ec2404835d43576fab4d79ade0fbc6606e34ad7e2da1ea99\n{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "health-after-CRUD-image",
+    "recordedAt": "2026-10-30T19:39:40.633580+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "openapi-CRUD-paths",
+    "recordedAt": "2026-10-30T19:39:40.924402+00:00",
+    "command": [
+      "docker",
+      "exec",
+      "hack-demo",
+      "python",
+      "-c",
+      "import json,urllib.request; print(sorted(json.load(urllib.request.urlopen('http://127.0.0.1:8080/openapi.json'))['paths']))"
+    ],
+    "exitCode": 0,
+    "stdout": "['/health', '/posts', '/posts/{id}']\n",
+    "stderr": ""
+  },
+  {
+    "stage": "observe-for-demo-board-window",
+    "recordedAt": "2026-10-30T19:39:42.353677+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "observe"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/observe.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n3    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=observe mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-policy-add",
+    "recordedAt": "2026-10-30T19:39:43.593405+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n3    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\ntracing policy \"/policies/network.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n3    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=network mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-health-connect",
+    "recordedAt": "2026-10-30T19:39:43.795639+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-probe"
+    ],
+    "exitCode": 0,
+    "stdout": "NETWORK_PROBE_START pid=55 time=2026-10-30T19:39:45.458424+00:00 destination=127.0.0.1:8080\nCONNECT_OK\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-refused-connect",
+    "recordedAt": "2026-10-30T19:39:44.043271+00:00",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-probe-closed"
+    ],
+    "exitCode": 1,
+    "stdout": "NETWORK_PROBE_START pid=61 time=2026-10-30T19:39:45.706292+00:00 destination=127.0.0.1:18080\nCONNECT_ERROR errno=111\n",
+    "stderr": ""
+  },
+  {
+    "stage": "file-observe-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=73 time=2026-10-30T19:43:23.171277+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-other-binary",
+    "command": [
+      "docker",
+      "exec",
+      "hack-demo",
+      "python",
+      "-I",
+      "-c",
+      "import socket; s=socket.create_connection(('127.0.0.1',8080),2); s.close(); print('OTHER_BINARY_CONNECT_OK')"
+    ],
+    "exitCode": 0,
+    "stdout": "OTHER_BINARY_CONNECT_OK\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-other-port",
+    "command": [
+      "docker",
+      "exec",
+      "hack-demo",
+      "/usr/local/bin/hack-demo-net-probe",
+      "-I",
+      "-c",
+      "import socket; s=socket.socket(); s.settimeout(2); print('NON_TARGET_CONNECT_ERRNO',s.connect_ex(('127.0.0.1',18181))); s.close()"
+    ],
+    "exitCode": 0,
+    "stdout": "NON_TARGET_CONNECT_ERRNO 111\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-policy-off",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-off"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-network\" deleted\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-released-connect",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-probe"
+    ],
+    "exitCode": 0,
+    "stdout": "NETWORK_PROBE_START pid=115 time=2026-10-30T19:46:10.224157+00:00 destination=127.0.0.1:8080\nCONNECT_OK\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-policy-reapply",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\ntracing policy \"/policies/network.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=network mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "file-enforce-regression",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "enforce"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-observe\" deleted\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\ntracing policy \"/policies/enforce.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n5    hack-demo-enforce   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      enforce        0       0          0\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=enforce mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "file-enforce-original-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 137,
+    "stdout": "PROBE_START pid=133 time=2026-10-30T19:46:12.815363+00:00\n",
+    "stderr": ""
+  },
+  {
+    "stage": "file-enforce-separate-network-probe-survives",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-probe"
+    ],
+    "exitCode": 0,
+    "stdout": "NETWORK_PROBE_START pid=139 time=2026-10-30T19:46:12.968683+00:00 destination=127.0.0.1:8080\nCONNECT_OK\n",
+    "stderr": ""
+  },
+  {
+    "stage": "health-under-file-enforce",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "restore-file-observe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "observe"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-enforce\" deleted\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   1       0          0\ntracing policy \"/policies/observe.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n6    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\n4    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   1       0          0\nAPPLIED mode=observe mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "file-read-restored",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=157 time=2026-10-30T19:46:14.616260+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-live-policies",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "tracingpolicy",
+      "list",
+      "-o",
+      "json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"policies\":[{\"id\":\"6\", \"name\":\"hack-demo-observe\", \"sensors\":[\"generic_kprobe\"], \"enabled\":true, \"state\":\"TP_STATE_ENABLED\", \"kernel_memory_bytes\":\"544480\", \"mode\":\"TP_MODE_MONITOR_ONLY\", \"stats\":{\"action_counters\":{\"post\":\"2\"}, \"selector_action_counters\":[{\"hook\":\"kprobe:security_file_permission\", \"hook_index\":0, \"selector_index\":0, \"action_counters\":{\"post\":\"2\"}}]}, \"domain\":\"grpc\", \"hook_statuses\":[{\"section\":\"kprobes\", \"state\":\"STATUS_LOADED\", \"hook_description\":\"security_file_permission\"}]}, {\"id\":\"4\", \"name\":\"hack-demo-network\", \"sensors\":[\"generic_kprobe\"], \"enabled\":true, \"state\":\"TP_STATE_ENABLED\", \"kernel_memory_bytes\":\"544480\", \"mode\":\"TP_MODE_MONITOR_ONLY\", \"stats\":{\"action_counters\":{\"post\":\"1\"}, \"selector_action_counters\":[{\"hook\":\"kprobe:tcp_connect\", \"hook_index\":0, \"selector_index\":0, \"action_counters\":{\"post\":\"1\"}}]}, \"domain\":\"grpc\", \"hook_statuses\":[{\"section\":\"kprobes\", \"state\":\"STATUS_LOADED\", \"hook_description\":\"tcp_connect\"}]}]}\n",
+    "stderr": ""
+  }
+]
