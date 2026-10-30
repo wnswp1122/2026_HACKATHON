@@ -9,6 +9,7 @@ from settings import Settings
 from forwarder import AuthenticationError, Counts, diagnose, send_event, send_status, validate_event
 from inputs import InputChangedError, read_lines
 from status_input import read_statuses
+from spool import DEFAULT_MAX_BYTES, SpoolError, durable_follow
 
 
 def main():
@@ -24,7 +25,17 @@ def main():
                       help="Send new status snapshots independently as live reports")
     mode.add_argument("--status-replay", type=Path, metavar="PATH",
                       help="Send one status snapshot as a sample report")
+    parser.add_argument("--spool-dir", type=Path, metavar="PATH",
+                        help="Persist one pending envelope and checkpoint; only with --follow")
+    parser.add_argument("--spool-max-bytes", type=int, default=DEFAULT_MAX_BYTES, metavar="BYTES",
+                        help="SQLite main-file limit (default 67108864; minimum 65536)")
     args = parser.parse_args()
+    if args.spool_dir is not None and not args.follow:
+        parser.error("--spool-dir requires --follow")
+    if not 65536 <= args.spool_max_bytes <= 1024 * 1024 * 1024:
+        parser.error("--spool-max-bytes must be between 65536 and 1073741824")
+    if args.spool_dir is None and args.spool_max_bytes != DEFAULT_MAX_BYTES:
+        parser.error("--spool-max-bytes requires --spool-dir")
     status_mode = args.status_follow is not None or args.status_replay is not None
     try:
         settings = Settings.from_environment(status_mode=status_mode)
@@ -43,13 +54,17 @@ def main():
     source = "live" if args.follow or args.status_follow is not None else "sample"
     status = "completed"
     exit_code = 0
-    if status_mode:
+    if args.spool_dir is not None:
+        lines = iter(())
+    elif status_mode:
         lines = read_statuses(args.status_follow or args.status_replay,
                               follow=args.status_follow is not None)
     else:
         lines = read_lines(settings.log_path if args.follow else args.replay, follow=args.follow)
     try:
         with httpx.Client(timeout=5, follow_redirects=False, trust_env=False) as client:
+            if args.spool_dir is not None:
+                durable_follow(client, settings, counts, args.spool_dir, args.spool_max_bytes)
             for item in lines:
                 if status_mode:
                     payload, error = item
@@ -72,6 +87,9 @@ def main():
                 send_event(client, settings, event, source, counts)
     except AuthenticationError:
         status, exit_code = "authentication_error", 2
+    except SpoolError as error:
+        status, exit_code = str(error), 2
+        diagnose(status)
     except InputChangedError as error:
         status, exit_code = str(error), 2
         diagnose(status)
@@ -81,7 +99,8 @@ def main():
     except KeyboardInterrupt:
         status, exit_code = "interrupted", 130
     finally:
-        lines.close()
+        if hasattr(lines, "close"):
+            lines.close()
     summary = {"status": status, "source": source, **counts.as_dict()}
     if status_mode:
         summary["kind"] = "sensor_status"

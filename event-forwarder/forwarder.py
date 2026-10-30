@@ -86,11 +86,16 @@ def make_envelope(settings: Settings, source: str):
 
 def send_event(client: httpx.Client, settings: Settings, event: bytes,
                source: str, counts: Counts):
-    envelope = make_envelope(settings, source)
-    # 한 번만 직렬화해 모든 시도에서 같은 내용과 ID를 유지한다.
-    body = json.dumps(envelope).encode("utf-8")[:-1] + b', "rawEvent": ' + event + b'}'
+    body, message_id = event_body(settings, event, source)
     send_body(client, settings.events_url, settings.ingest_token, body,
-              envelope["messageId"], counts, "eventId")
+              message_id, counts, "eventId")
+
+
+def event_body(settings: Settings, event: bytes, source: str):
+    envelope = make_envelope(settings, source)
+    # 한 번만 직렬화해 재시작 뒤에도 같은 내용과 ID를 보낼 수 있다.
+    body = json.dumps(envelope).encode("utf-8")[:-1] + b', "rawEvent": ' + event + b'}'
+    return body, envelope["messageId"]
 
 
 def send_status(client: httpx.Client, settings: Settings, payload: dict,
@@ -125,19 +130,19 @@ def send_body(client, url, token, body, message_id, counts, id_field):
                         counts.duplicates += 1
                     else:
                         counts.accepted += 1
-                    return
+                    return True
                 reason = "ambiguous_ack"
             elif status == 429 or 500 <= status <= 599:
                 reason = "temporary_http_error"
             else:
                 counts.failed += 1
                 diagnose("http_failure", http_status=status)
-                return
+                return False
         if attempt == 3:
             counts.failed += 1
             diagnose("retry_exhausted", failure=reason,
                      http_status=response.status_code if response is not None else None)
-            return
+            return False
         delay = retry_delay(response, attempt)
         diagnose("retry", failure=reason, next_attempt=attempt + 2, delay_seconds=delay)
         time.sleep(delay)
