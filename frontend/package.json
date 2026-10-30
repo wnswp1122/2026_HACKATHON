@@ -19,6 +19,7 @@
     "html-to-image": "1.11.13",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-globe.gl": "2.38.0",
     "recharts": "3.10.1"
   },
   "devDependencies": {

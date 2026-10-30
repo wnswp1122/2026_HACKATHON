@@ -1,24 +1,8 @@
-import { useState } from 'react';
-import sphere from '../assets/globe-sphere.svg';
-import grid from '../assets/globe-grid.svg';
-import land from '../assets/globe-land.svg';
-import { number, type Location, type NetworkItem, type NetworkResponse } from '../types';
+import { lazy, Suspense, useState } from 'react';
+import { number, type NetworkItem, type NetworkResponse } from '../types';
 
-const rad = Math.PI / 180;
-function project(location: Location, center: [number, number]) {
-  const lat = location.latitude * rad,
-    lon = (location.longitude - center[1]) * rad,
-    origin = center[0] * rad;
-  const visible =
-    Math.sin(origin) * Math.sin(lat) + Math.cos(origin) * Math.cos(lat) * Math.cos(lon) >= 0;
-  return {
-    x: 320 + 205.7 * Math.cos(lat) * Math.sin(lon),
-    y:
-      228.5 -
-      205.7 * (Math.cos(origin) * Math.sin(lat) - Math.sin(origin) * Math.cos(lat) * Math.cos(lon)),
-    visible,
-  };
-}
+const Globe3D = lazy(() => import('./NetworkGlobe3D'));
+
 const ipKind = (item: NetworkItem) =>
   item.network?.destinationIp
     ? 'destinationIp'
@@ -40,7 +24,6 @@ const networkKey = (item: NetworkItem) =>
   ]);
 export function NetworkGlobe({ data }: { data: NetworkResponse }) {
   const [center, setCenter] = useState<[number, number]>([20, 0]);
-  const [selected, setSelected] = useState<string>();
   const mapped = data.items.filter((item) => item.location);
   return (
     <article className="panel globe-card">
@@ -65,74 +48,14 @@ export function NetworkGlobe({ data }: { data: NetworkResponse }) {
           회전 →
         </button>
       </div>
-      <div className="globe-scroll">
-        <div className="globe-canvas">
-          <img className="globe-sphere" src={sphere} alt="" />
-          <img className="globe-grid" src={grid} alt="" />
-          <img className="globe-land" src={land} alt="" />
-          <svg viewBox="0 0 640 457" role="img" aria-label="관찰 IP와 서버 설정 위치의 구면 투영">
-            <title>좌표가 있는 위치만 표시합니다. 지구 배경은 디자인 참고 일러스트입니다.</title>
-            {mapped.map((item) => {
-              const end = project(item.location!, center),
-                start = item.serverLocation ? project(item.serverLocation, center) : null;
-              return (
-                <g key={networkKey(item)}>
-                  {start?.visible && end.visible && (
-                    <path
-                      d={`M ${start.x} ${start.y} Q ${(start.x + end.x) / 2} ${Math.min(start.y, end.y) - 60} ${end.x} ${end.y}`}
-                      fill="none"
-                      stroke="#22d3ee"
-                      strokeWidth={selected === networkKey(item) ? 2.5 : 1}
-                      opacity=".6"
-                    />
-                  )}
-                  {start?.visible && (
-                    <circle cx={start.x} cy={start.y} r="4" fill="#a78bfa">
-                      <title>{item.instanceId} · 서버 설정 위치</title>
-                    </circle>
-                  )}
-                  {end.visible && (
-                    <g>
-                      <circle
-                        cx={end.x}
-                        cy={end.y}
-                        r={selected === networkKey(item) ? 7 : 4}
-                        fill="#22d3ee"
-                      >
-                        <title>
-                          {ip(item)} · {item.location!.source} · 관찰 {item.count}건
-                        </title>
-                      </circle>
-                      {selected === networkKey(item) && (
-                        <text
-                          x={Math.min(485, Math.max(5, end.x + 10))}
-                          y={end.y - 10}
-                          fill="#22d3ee"
-                          fontSize="11"
-                        >
-                          {ip(item)}
-                        </text>
-                      )}
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-          {!mapped.length && (
-            <p className="globe-empty">
-              표시할 위치가 없습니다.
-              <br />
-              임의 좌표를 만들지 않습니다.
-            </p>
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<p className="empty">3D 지구본을 불러오는 중입니다.</p>}>
+        <Globe3D items={data.items} center={center} />
+      </Suspense>
       <div className="legend">
         <i className="dot blue" /> 관찰 대상 IP <i className="dot purple" /> 서버 설정 위치
       </div>
       <p className="hint">
-        구면 투영 · 배경은 참고 일러스트 · 반대 반구 위치는 회전하거나 아래 목록에서 선택하세요.
+        3D 지구본 · 드래그로 회전하고 휠로 확대하세요. 선은 서버와 관찰 IP의 관계이며 공격 방향을 뜻하지 않습니다.
       </p>
       <div className="table-scroll network-list">
         <table>
@@ -151,7 +74,6 @@ export function NetworkGlobe({ data }: { data: NetworkResponse }) {
                   <button
                     className="text-button"
                     onClick={() => {
-                      setSelected(networkKey(item));
                       setCenter([item.location!.latitude, item.location!.longitude]);
                     }}
                   >
