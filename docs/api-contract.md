@@ -137,3 +137,7 @@ process_exec/process_exit의 process/parent부터 매핑한다. process_kprobe�
 ## 7. 공유 자료
 
 [예시 원본 JSONL](fixtures/sample-events.jsonl)은 전송기 replay 및 SaaS 수신 개발용이며 실측 자료가 아니다. 실제 이벤트는 Tetragon 담당이 버전·정책·필드 매핑·검증 결과와 함께 별도로 제공한다. rawEvent 원본 파일과 HTTP 봉투 예시를 혼동하지 않는다.
+
+## 8. 5개 화면을 위한 추가 구현 계약
+
+제품 소개는 AI 기반 서버 보안 모니터링·분석 플랫폼이다. [Tetragon 5개 화면 계획](tetragon-screen-plan.md)의 nullable 정규화 필드와 별도 센서 상태 수신 계약을 후속 구현 기준으로 사용한다. 기존 이벤트 v1 봉투·ACK·중복 규칙은 유지한다. 위 6절의 heartbeat 제외는 기존 이벤트 계약의 범위이며, 새 수집·정책 준비 점검은 별도 상태 보고를 추가하여 구현한다. 새 계약의 문서화가 실제 수집이나 통합 완료를 뜻하지 않는다.

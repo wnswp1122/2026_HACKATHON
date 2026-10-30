@@ -1,4 +1,4 @@
-# Tetragon 기반 보안 모니터링 SaaS MVP
+# AI 기반 서버 보안 모니터링·분석 플랫폼
 
 사용자 서버의 게시판 활동을 Tetragon으로 관찰하고 정책 대응 결과를 확인한다. 이벤트를 SaaS에 보내 대시보드에서 조회하고, 선택한 시점의 데이터와 대시보드 캡처를 함께 AI로 분석한다.
 
@@ -18,7 +18,8 @@
 4. [수동 확인](docs/manual-verification.md): 컴포넌트·실제 수집·팀 통합 구분.
 5. [기술 스택](docs/tech-stack.md), [설계](docs/runtime-security-design.md), [결정](docs/decisions.md).
 6. [SaaS 병렬 개발 기준](docs/saas-parallel-development.md): 추가 네 작업의 소유 범위·공유 DB·프론트 API.
-7. [GitHub 협업 규칙](docs/github-collaboration.md): 검증 후 푸시, 기능별 PR.
+7. [Tetragon 5개 화면 계획](docs/tetragon-screen-plan.md): 원본 Figma 보존·새 화면·추가 데이터 계약·Orca 후속 작업.
+8. [GitHub 협업 규칙](docs/github-collaboration.md): 검증 후 푸시, 기능별 PR.
 
 게시판은 프론트 없는 간단한 CRUD API다. SaaS는 FastAPI 단일 서버 안에서 모듈을 나누고 PostgreSQL에 저장한다. 대시보드는 React·TypeScript·Vite·Recharts를 사용한다. 로그인·결제·운영 배포·CPU/메모리/HTTP 성능 수집은 이번 범위에서 제외한다.
 
