@@ -27,7 +27,7 @@ export const SnapshotView = memo(
             <b>집계 범위</b> {s.filters.instanceId || '전체 인스턴스'} ·{' '}
             {s.filters.eventType ? typeLabels[s.filters.eventType] : '전체 유형'} ·{' '}
             {s.filters.status === 'attention'
-              ? '주의 필요'
+              ? '주의'
               : s.filters.status === 'observed'
                 ? '관찰됨'
                 : '전체 상태'}{' '}
@@ -64,7 +64,7 @@ export const SnapshotView = memo(
                   <td>{e.instanceId}</td>
                   <td>{typeLabels[e.eventType]}</td>
                   <td>{e.source}</td>
-                  <td>{e.status === 'attention' ? '주의 필요' : '관찰됨'}</td>
+                  <td>{e.status === 'attention' ? '주의' : '관찰됨'}</td>
                   <td>{e.outcome}</td>
                 </tr>
               ))}
@@ -79,7 +79,7 @@ export const SnapshotView = memo(
           </p>
         </div>
         <p className="capture-footer">
-          원본·명령 인자·프로세스 경로는 제외됩니다. 주의 필요는 공격 확정이 아니며 실제 차단·유출
+          원본·명령 인자·프로세스 경로는 제외됩니다. 주의는 공격 확정이 아니며 실제 차단·유출
           여부는 확인되지 않았습니다.
         </p>
       </div>

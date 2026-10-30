@@ -49,7 +49,7 @@ export function EventTable({
                 </td>
                 <td>
                   <span className={`badge ${e.status}`}>
-                    {e.status === 'attention' ? '주의 필요' : '관찰됨'}
+                    {e.status === 'attention' ? '주의' : '관찰됨'}
                   </span>
                 </td>
                 <td>

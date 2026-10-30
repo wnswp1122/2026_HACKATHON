@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { api } from './api';
+import { MonitoringSetup } from './MonitoringSetup';
 import { Detail } from './events/Detail';
 import { Filters, initialSelection } from './events/Filters';
 import { useDashboard } from './events/useDashboard';
@@ -10,6 +11,7 @@ import {
   dateTime,
   safeSnapshotFilters,
   selectionFilters,
+  sourceLabel,
   type Analysis,
   type PeriodFilters,
   type Selection,
@@ -33,10 +35,24 @@ const localTime = (value: string) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 23);
 };
 
+const scopeStorageKey = 'litesoc-monitoring-scope';
+function savedScope(): Pick<Selection, 'instanceId' | 'source'> | undefined {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(scopeStorageKey) || 'null');
+    if (value && (value.source === 'live' || value.source === 'sample') &&
+      (value.instanceId === undefined || typeof value.instanceId === 'string')) {
+      return { instanceId: value.instanceId, source: value.source };
+    }
+  } catch { /* Storage may be unavailable; setup still works for this visit. */ }
+}
+
 export default function App() {
   const { path, navigate } = useNavigation();
   const route = routes.find((route) => route.path === path);
-  const [selection, setSelection] = useState(initialSelection),
+  const [scope] = useState(savedScope);
+  const [configured, setConfigured] = useState(!!scope);
+  const [setupOpen, setSetupOpen] = useState(!scope);
+  const [selection, setSelection] = useState<Selection>(() => ({ ...initialSelection, ...scope })),
     [page, setPage] = useState(1),
     [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
@@ -51,13 +67,14 @@ export default function App() {
   );
   const [analysisContext, setAnalysisContext] = useState<PeriodFilters>();
   const [replayFilters, setReplayFilters] = useState<PeriodFilters>();
-  const analysisRef = useRef<HTMLDivElement>(null);
+  const analysisToggleRef = useRef<HTMLButtonElement>(null);
+  const analysisCloseRef = useRef<HTMLButtonElement>(null);
   const instances = useResource(api.instances, refresh);
   const live = useDashboard(
     selection,
     page,
     refresh,
-    ['/overview', '/telemetry', '/servers'].includes(path),
+    configured && !setupOpen && ['/overview', '/telemetry', '/servers'].includes(path),
   );
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -69,6 +86,12 @@ export default function App() {
     addEventListener('popstate', syncDetail);
     return () => removeEventListener('popstate', syncDetail);
   }, []);
+  useEffect(() => {
+    if (!configured) return;
+    try {
+      sessionStorage.setItem(scopeStorageKey, JSON.stringify({ instanceId: selection.instanceId, source: selection.source }));
+    } catch { /* Keep the in-memory selection when storage is unavailable. */ }
+  }, [configured, selection.instanceId, selection.source]);
   const stale = !instances.successAt || now - Date.parse(instances.successAt) > 10000;
   function choose(next: Selection) {
     if (busy) return;
@@ -95,13 +118,26 @@ export default function App() {
     history.replaceState(null, '', url);
   }
   function analyze(filters?: PeriodFilters) {
-    if (busy) return;
-    setAnalysisContext(filters || selectionFilters(selection));
+    if (!busy) setAnalysisContext(filters || selectionFilters(selection));
     setAnalysisOpen(true);
-    requestAnimationFrame(() =>
-      analysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-    );
   }
+  function closeAnalysis() {
+    setAnalysisOpen(false);
+    analysisToggleRef.current?.focus();
+  }
+  useEffect(() => {
+    if (!analysisOpen) return;
+    analysisCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setAnalysisOpen(false);
+        analysisToggleRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [analysisOpen]);
   function inspectReplay(filters: PeriodFilters) {
     if (busy) return;
     setDetailId('');
@@ -121,10 +157,34 @@ export default function App() {
     selectedDetailId: detailId,
     onPage: setPage,
     onSelection: choose,
-    onAnalyze: analyze,
   };
+  if (setupOpen) return (
+    <MonitoringSetup
+      selection={selection}
+      instances={instances.data?.items || []}
+      loading={instances.loading}
+      error={instances.error}
+      onRetry={() => setRefresh((value) => value + 1)}
+      onCancel={configured ? () => setSetupOpen(false) : undefined}
+      onStart={(instanceId, source) => {
+        if (configured && (instanceId !== selection.instanceId || source !== selection.source)) {
+          const url = new URL(location.href);
+          for (const name of ['replay', 'snapshot', 'event', 'analysis']) url.searchParams.delete(name);
+          history.replaceState(null, '', url);
+          setDetailId('');
+          setReplayFilters(undefined);
+        }
+        choose({ ...initialSelection, instanceId, source });
+        setConfigured(true);
+        setSetupOpen(false);
+        setBriefing(undefined);
+        setAnalysisContext(undefined);
+        setAnalysisOpen(false);
+      }}
+    />
+  );
   return (
-    <div className={`app-shell ${detailId ? 'has-event-detail' : ''}`}>
+    <div className={`app-shell ${analysisOpen ? 'analysis-is-open' : ''} ${detailId ? 'has-event-detail' : ''}`}>
       <aside className="sidebar">
         <a className="brand" href="/overview" onClick={(event) => go(event, '/overview')}>
           <span className="brand-icon">L</span>
@@ -144,24 +204,16 @@ export default function App() {
             {item.label}
           </a>
         ))}
-        <div className="sidebar-note">
-          <b>Tetragon 센서</b>
-          <p>
-            센서·정책 상태 <span>준비 점검에서 확인</span>
-          </p>
-          <p>
-            조회 API{' '}
-            <span>{instances.error ? '조회 오류' : stale ? '오래됨/대기' : '응답 수신'}</span>
-          </p>
-          <small>이벤트 수신 ≠ 센서 정상. source live/sample을 구분합니다.</small>
-        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
           <div>
             <span className="workspace-badge">L</span>
-            <b>로컬 보안 워크스페이스</b>
-            <span className="env-label">MVP</span>
+            <div className="monitoring-scope">
+              <b>{selection.instanceId || '전체 인스턴스'}</b>
+              <small>{sourceLabel(selection.source)}</small>
+            </div>
+            <button disabled={busy} onClick={() => setSetupOpen(true)}>모니터링 설정</button>
           </div>
           <div>
             <span className={`connection ${instances.error || stale ? 'delayed' : ''}`}>
@@ -170,13 +222,16 @@ export default function App() {
             </span>
             <span className="poll-label">2s 폴링</span>
             <button
-              className="analyst-link"
+              ref={analysisToggleRef}
+              className={`analyst-link ${analysisOpen ? 'active' : ''}`}
+              aria-expanded={analysisOpen}
+              aria-controls="ai-sidebar"
               disabled={
-                busy ||
+                !analysisOpen && !busy && (
                 (path === '/replay' && !replayFilters) ||
-                (path === '/readiness' && !selection.source)
+                (path === '/readiness' && !selection.source))
               }
-              onClick={() =>
+              onClick={() => analysisOpen ? closeAnalysis() :
                 analyze(
                   path === '/replay'
                     ? replayFilters
@@ -194,7 +249,6 @@ export default function App() {
           <div className="page-heading">
             <div>
               <h1>{route?.label || '화면을 찾을 수 없습니다'}</h1>
-              <p>AI 기반 서버 보안 모니터링·분석 플랫폼</p>
             </div>
             <div className="heading-actions">
               {path !== '/replay' && (
@@ -204,7 +258,7 @@ export default function App() {
                   }
                   onClick={() => setRefresh((value) => value + 1)}
                 >
-                  ↻ 저장된 최신 데이터 조회
+                  ↻ 새로고침
                 </button>
               )}
               <button disabled title="후속 지원 예정">
@@ -219,40 +273,28 @@ export default function App() {
           )}
           {route && (
             <>
-              <div className="ai-briefing">
-                <span className="ai-tag">AI 관찰</span>
-                <div>
-                  <p>
-                    {briefing
-                      ? `고정 스냅샷 ${briefing.snapshotId.slice(0, 8)} · ${briefing.model} · ${dateTime(briefing.createdAt)}`
-                      : '기존 안전 집계·이벤트 요약과 고정 캡처만 분석합니다.'}
-                  </p>
-                  <strong>
-                    {briefing
-                      ? briefing.result.facts[0] || '고정 스냅샷의 분석 결과를 확인하세요.'
-                      : '관찰 순서만으로 공격·로그인·DB 조회·유출·차단 성공을 단정하지 않습니다.'}
-                  </strong>
-                  {briefing?.model.includes('mock') && <span>mock 응답 · 실제 모델 분석 아님</span>}
+              {briefing && (
+                <div className="ai-briefing">
+                  <span className="ai-tag">AI 관찰</span>
+                  <div>
+                    <p>
+                      고정 스냅샷 {briefing.snapshotId.slice(0, 8)} · {briefing.model} ·{' '}
+                      {dateTime(briefing.createdAt)}
+                    </p>
+                    <strong>
+                      {briefing.result.facts[0] || '고정 스냅샷의 분석 결과를 확인하세요.'}
+                    </strong>
+                    {briefing.model.includes('mock') && <span>mock 응답 · 실제 모델 분석 아님</span>}
+                  </div>
                 </div>
-              </div>
-              <Filters
-                readinessOnly={path === '/readiness'}
+              )}
+              {path !== '/readiness' && <Filters
+                timePicker={path === '/telemetry'}
+                range={live.data?.filters}
                 selection={selection}
-                instances={instances.data?.items || []}
                 disabled={busy}
                 onChange={choose}
-              />
-              <p className="freshness">
-                source={selection.source || 'live + sample 혼합'} ·{' '}
-                {path === '/readiness'
-                  ? '상태 보고 관찰·수신 시각'
-                  : path === '/replay'
-                    ? '수신 시각으로 집합 선택 · 발생 시각으로 재생'
-                    : '수신 시각 기준 조회'}{' '}
-                · 마지막 인스턴스 조회{' '}
-                {instances.successAt ? dateTime(instances.successAt) : '없음'} · 최근 이벤트가
-                heartbeat를 대신하지 않습니다.
-              </p>
+              />}
               <Suspense
                 fallback={
                   <div className="panel empty" role="status">
@@ -267,7 +309,6 @@ export default function App() {
                   <ReadinessScreen
                     selection={selection}
                     refresh={refresh}
-                    onAnalyze={analyze}
                     onSelectInstance={(id) => choose({ ...selection, instanceId: id })}
                   />
                 )}
@@ -276,7 +317,6 @@ export default function App() {
                     selection={selection}
                     onDetail={inspect}
                     onTelemetry={inspectReplay}
-                    onAnalyze={analyze}
                     onReplay={setReplayFilters}
                   />
                 )}
@@ -288,30 +328,32 @@ export default function App() {
               보안 개요로 이동
             </a>
           )}
-          <div ref={analysisRef} className="analysis-workspace" hidden={!analysisOpen}>
-            <div className="analysis-workspace-heading">
-              <h2>안전 요약 분석 영역</h2>
-              <button disabled={busy} onClick={() => setAnalysisOpen(false)}>
-                분석 영역 닫기
-              </button>
-            </div>
-            {analysisContext && <Scope filters={analysisContext} />}
-            <p className="notice">
-              분석 진입 시점의 기간·서버·출처로 고정합니다. 프로세스·정책 필터는 제외되며, 현재
-              화면의 IP·위치·관계·센서 상태·파일 경로는 AI에 전달하지 않습니다.
-            </p>
-            <Suspense fallback={<p>분석 화면 준비 중…</p>}>
-              <AnalysisPanel
-                selection={selection}
-                filters={analysisContext ? safeSnapshotFilters(analysisContext) : undefined}
-                onBusy={setBusy}
-                onResult={setBriefing}
-              />
-            </Suspense>
-          </div>
           <footer>LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
         </main>
       </div>
+      <aside
+        id="ai-sidebar"
+        className={`ai-sidebar ${analysisOpen ? 'is-open' : ''}`}
+        aria-label="AI 분석"
+        aria-hidden={!analysisOpen}
+        inert={!analysisOpen}
+      >
+        <div className="ai-sidebar-heading">
+          <div><span className="ai-tag">AI</span><h2>보안 분석</h2></div>
+          <button ref={analysisCloseRef} aria-label="AI 사이드바 닫기" onClick={closeAnalysis}>×</button>
+        </div>
+        <div className="ai-sidebar-body">
+          {analysisContext && <Scope filters={analysisContext} />}
+          <Suspense fallback={<p role="status">분석 화면 준비 중…</p>}>
+            <AnalysisPanel
+              selection={selection}
+              filters={analysisContext ? safeSnapshotFilters(analysisContext) : undefined}
+              onBusy={setBusy}
+              onResult={setBriefing}
+            />
+          </Suspense>
+        </div>
+      </aside>
       {detailId && <><button type="button" className="event-drawer-backdrop" aria-label="상세 닫기" onClick={closeDetail} /><Detail id={detailId} onClose={closeDetail} /></>}
     </div>
   );

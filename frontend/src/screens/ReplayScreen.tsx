@@ -4,25 +4,22 @@ import {
   dateTime,
   eventTypes,
   selectionFilters,
-  sourceLabel,
   typeLabels,
   type PeriodFilters,
   type Replay,
   type Selection,
 } from '../types';
-import { AnalysisAside, Scope, Stats } from './Common';
+import { Scope, Stats } from './Common';
 
 export function ReplayScreen({
   selection,
   onDetail,
   onTelemetry,
-  onAnalyze,
   onReplay,
 }: {
   selection: Selection;
   onDetail: (id: string) => void;
   onTelemetry: (filters: PeriodFilters) => void;
-  onAnalyze: (filters?: PeriodFilters) => void;
   onReplay: (filters: PeriodFilters) => void;
 }) {
   const [replay, setReplay] = useState<Replay>();
@@ -113,10 +110,6 @@ export function ReplayScreen({
   }
   return (
     <>
-      <p className="hint">
-        위 필터 변경은 새 리플레이를 고정할 때 적용합니다. 기존 고정 집합과 재생 시점은 자동으로
-        바뀌지 않습니다.
-      </p>
       <div className="replay-actions">
         <button className="primary" disabled={busy} onClick={() => void load()}>
           선택 범위 리플레이 고정
@@ -149,32 +142,26 @@ export function ReplayScreen({
       )}
       {!replay ? (
         <div className="panel empty">
-          기간·서버·출처를 선택하고 리플레이를 고정하세요. 예시 이벤트를 자동 생성하지 않습니다.
+          재생할 이벤트를 선택하세요.
         </div>
       ) : (
         <>
           <Scope filters={replay.filters} />
-          <p className="scope mono">
-            Replay {replay.replayId} · 생성 {dateTime(replay.createdAt)} · 발생 시각 기준 재생 ·{' '}
-            {sourceLabel(replay.filters.source)}
-          </p>
+          <div className="scope-chips"><span className="status-chip" title={replay.replayId}>고정 리플레이</span>{replay.truncated && <span className="status-chip caution">일부 이벤트만 재생</span>}</div>
           <Stats
             items={[
-              { label: '선택 집합 전체', value: replay.total, note: 'receivedAt으로 기간 선택' },
+              { label: '선택 집합 전체', value: replay.total },
               {
                 label: '재생 이벤트',
                 value: replay.events.length,
-                note: 'occurredAt → eventId 오름차순',
               },
               {
                 label: '발생 시각 없음',
                 value: replay.undatedCount,
-                note: '재생에서 제외 · 원본 목록에서 확인',
               },
               {
                 label: '고정 한도',
                 value: replay.eventLimit,
-                note: replay.truncated ? '상한으로 일부 생략' : '서버 응답 생략 없음',
               },
             ]}
           />
@@ -285,12 +272,6 @@ export function ReplayScreen({
                 {!replay.events.length && (
                   <p className="empty">발생 시각이 있는 이벤트가 없습니다.</p>
                 )}
-                {!!replay.events.length && !duration && (
-                  <p className="hint">
-                    모든 이벤트의 발생 시각이 같습니다. 이전·다음 관찰로 eventId 순서의 개별
-                    이벤트를 확인하세요.
-                  </p>
-                )}
                 {current && (
                   <div className="current-event" data-event-id={current.eventId}>
                     <p>
@@ -308,16 +289,11 @@ export function ReplayScreen({
                     <button onClick={() => onDetail(current.eventId)}>선택 이벤트 원본 상세</button>
                   </div>
                 )}
-                <p className="notice">
-                  로그인·계정 탈취·DB 조회·전송량·유출을 재구성하지 않습니다. 새 수신이나 라이브
-                  폴링으로 이 리플레이를 변경하지 않습니다.
-                </p>
                 <button onClick={() => onTelemetry(replay.filters)}>
                   발생 시각 없는 {replay.undatedCount}건 포함 원본 목록 보기
                 </button>
               </article>
             </div>
-            <AnalysisAside onAnalyze={() => onAnalyze(replay.filters)} />
           </div>
         </>
       )}

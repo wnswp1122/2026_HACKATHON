@@ -88,10 +88,10 @@ export const dateTime = (value: string | null) =>
 export const number = (value: number) => value.toLocaleString('ko-KR');
 export const sourceLabel = (source?: Source) =>
   source === 'sample'
-    ? 'sample · 예시/재생'
+    ? '예시 데이터 · sample'
     : source === 'live'
-      ? 'live · 현재 수집'
-      : 'live + sample';
+      ? '실제 수집 데이터 · live'
+      : '실제 수집 + 예시 데이터';
 export function selectionFilters(selection: Selection, now = Date.now()): PeriodFilters {
   const { period, from, to, ...optional } = selection;
   const end = period === 'custom' ? new Date(to).getTime() : now;
