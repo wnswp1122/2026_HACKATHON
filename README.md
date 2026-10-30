@@ -1,40 +1,31 @@
-# 프로젝트 이름
+# Tetragon 기반 보안 모니터링 시연
 
-> 프로젝트 소개를 작성해 주세요.
+Tetragon으로 시연 서버의 활동을 관찰하고 미리 준비한 정책에 따른 대응을 확인한다. 이벤트는 대시보드와 화면 알림으로 보여주고 AI가 조사 안내를 제공한다. 현재는 **개발 환경과 작업 구조만 준비된 상태**다.
 
-## 해결하려는 문제
+## 문서
 
-프로젝트가 해결하려는 문제와 대상 사용자를 작성합니다.
+- [개발 시작 안내: 팀원과 AI를 위한 전체 작업 가이드](docs/development-guide.md)
+- [개발 설계와 API 초안](docs/runtime-security-design.md)
+- [시연용 서버](demo/README.md) · [Tetragon 정책](tetragon/README.md) · [이벤트 전송](event-forwarder/README.md)
+- [백엔드](backend/README.md) · [대시보드](frontend/README.md)
+- [결정 기록](docs/decisions.md) · [작업 기록](worklog/README.md)
 
-## 핵심 기능과 데모
+## 로컬 개발 환경
 
-- 핵심 기능과 데모 흐름을 정리합니다.
+Python 3.12를 기준으로 백엔드와 이벤트 전송 모듈을 준비한다. 화면은 HTML·CSS·JavaScript로 시작한다. Tetragon 실행에는 호환되는 Linux 커널 환경과 별도 설치·권한이 필요하며, macOS Docker Desktop의 Linux VM에서 동작하는지 확인해야 한다.
 
-## 기술 스택
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+cp .env.example .env
+```
 
-- 결정 후 작성합니다.
+`.env`에는 실제 비밀값을 저장소에 올리지 않는다. AI 제공자와 키 이름은 아직 정하지 않았다. 이 준비는 Python 의존성 설치까지만 수행하며, 애플리케이션 실행 코드와 Tetragon 설정은 아직 없다.
 
-## 시작하기
+## 개발 순서
 
-### 사전 준비
-
-- 필요한 도구와 버전을 작성합니다.
-
-### 환경변수
-
-`.env.example`을 참고해 로컬 환경변수를 설정합니다. 실제 키는 저장소에 올리지 않습니다.
-
-### 실행
-
-- 기술 스택이 정해지면 설치 및 실행 방법을 작성합니다.
-
-## 팀과 링크
-
-- 팀원 및 담당 영역:
-- 기획·디자인·배포 링크:
-
-## 작업 기록
-
-- 이슈와 PR에 문제, 해결 방법, 고민, 결과를 기록합니다.
-- 별도 기록이 필요할 때는 [worklog](worklog/README.md)를 사용합니다.
-- 현재 유효한 주요 합의는 [결정 기록](docs/decisions.md)에 정리합니다.
+1. Tetragon의 단일 이벤트와 정책 대응을 Linux 환경에서 검증한다.
+2. 실제 이벤트를 전송해 백엔드에서 조회한다.
+3. 대시보드와 화면 알림을 연결한다.
+4. AI 조사 안내를 연결하고 전체 흐름을 확인한다.
