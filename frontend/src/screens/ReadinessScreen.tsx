@@ -58,7 +58,7 @@ export function ReadinessScreen({
             items={(['ready', 'warning', 'error', 'unknown', 'stale'] as const).map((state) => ({
               label: labels[state],
               value: data.items.filter((item) => item.state === state).length,
-              tone: state === 'error' ? 'warning' : '',
+              tone: state === 'ready' ? 'safe' : state === 'error' ? 'warning' : state === 'unknown' ? 'unknown' : 'caution',
             }))}
           />
           <div className="readiness-grid">
@@ -129,7 +129,7 @@ export function ReadinessScreen({
               {(['sensors', 'policies'] as const).map((key) => (
                 <article className="panel" key={key}>
                   <div className="panel-heading">
-                    <h3>{key === 'sensors' ? '센서 상태' : '정책 로드·오류'}</h3>
+                    <h3>{key === 'sensors' ? '센서 상태' : '관찰·대응 규칙 로드 상태'}</h3>
                     <span>저장된 {shownSource} 상태 보고</span>
                   </div>
                   <div className="table-scroll">

@@ -43,6 +43,7 @@ export function usePeriodResource<T>(
   fetcher: (filters: PeriodFilters, signal: AbortSignal) => Promise<T>,
   selection: Selection,
   refresh: number,
+  enabled = true,
 ) {
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -51,5 +52,5 @@ export function usePeriodResource<T>(
     },
     [fetcher, selection],
   );
-  return useResource(load, refresh);
+  return useResource(load, refresh, enabled);
 }

@@ -280,6 +280,7 @@ http
               execId: e.process.execId,
               network: e.network,
               count: 0,
+              attentionCount: 0,
               location:
                 e.network.destinationIp === '203.0.113.10'
                   ? {
@@ -297,6 +298,7 @@ http
               },
             });
           groups.get(key).count++;
+          if (e.status === 'attention') groups.get(key).attentionCount++;
         }
         const items = [...groups.entries()]
           .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
