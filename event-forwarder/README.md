@@ -1,6 +1,6 @@
 # 클라이언트 이벤트 전송기 개발 지침
 
-사용자 담당. JSONL 원본을 [데이터 계약](../docs/api-contract.md)에 맞춰 SaaS에 전송한다. 현재 구현 전이다.
+사용자 담당. JSONL 원본을 [데이터 계약](../docs/api-contract.md)에 맞춰 SaaS에 전송한다. HTTPX·환경변수 검증·--check-config 진입점·Dockerfile을 준비했다. follow/replay와 실제 전송은 아직 미구현이다.
 
 ## 소유 범위
 
@@ -20,3 +20,7 @@ main.py, requirements.txt, 필요한 설정 예시·검증 자료를 event-forwa
 [예시 원본](../docs/fixtures/sample-events.jsonl)을 replay한다. 실제 SaaS가 없으면 임시 HTTP 수신기로 요청 봉투·인증 헤더·재시도 ID 일치·200/201·4xx·5xx·timeout·불명확 ACK를 직접 확인한다. 이를 SaaS 실제 연동으로 기록하지 않는다.
 
 follow는 시작 전 줄 제외, 미완결 줄 보관, 새 완결 줄 전송, 회전/축소 종료를 확인한다. 네트워크 실패·재시작 시 무손실 전달을 보장하지 않는 한계를 README에 유지한다. [클라이언트 지침](../docs/client-development.md)을 따른다.
+
+## 준비된 기반
+
+settings.py는 URL/인스턴스/토큰/입력 경로를 검증하며 토큰 repr을 숨긴다. main.py의 --check-config는 요청 구성을 확인하지만 HTTP 요청을 보내지 않는다. requirements.lock으로 독립 가상환경을 재현한다. 환경변수의 실제 값은 Git에 넣지 않는다. proxy 환경변수 자동 사용과 HTTP redirect는 기본 비활성이다.

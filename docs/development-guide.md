@@ -13,7 +13,7 @@
 ## 실행 순서
 
 1. 데이터 계약·담당 지침을 Markdown으로 반영하고 검증 후 기능 브랜치에 푸시한다.
-2. Python 3.12 개발 환경, 별도 Linux VM과 Docker, 의존성·설정·수동 확인 절차를 준비한다. 실제 확인한 결과와 미확인 범위를 기록하고 재현 가능한 파일을 푸시한다.
+2. Python 3.12 개발 환경, 별도 Linux VM과 Docker, 의존성·설정·수동 확인 절차와 FastAPI/SQLite·HTTPX 프레임워크 진입점을 준비한다. 실제 확인한 결과와 미확인 범위를 기록하고 재현 가능한 파일을 푸시한다.
 3. 위 커밋에서 Orca 워크트리 3개를 만든다: demo-board, tetragon-runtime, event-forwarder.
 4. [클라이언트 지침](client-development.md)을 각 에이전트에 전달하고 병렬 구현을 시작한다. SaaS·프론트 구현은 실행하지 않는다.
 5. 게시판 CRUD, 실제 Tetragon 원본, 전송 수신을 연결한다. 이후 팀원의 SaaS와 통합한다.

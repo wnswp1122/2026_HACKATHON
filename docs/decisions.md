@@ -16,10 +16,18 @@
 
 [데이터/API 계약](api-contract.md)을 사용자 서버→SaaS의 단일 기준으로 사용한다. schemaVersion/messageId/instanceId/source/rawEvent, 토큰 인증, DB 저장 후 ACK, 메시지 중복 처리를 포함한다. 제한 재시도는 영속 큐나 무손실 전달이 아니다.
 
-사용자 요청 순서: 문서·데이터 관련 Markdown 지침 반영 및 푸시 → 개발환경 준비·검증·재현 설정 푸시 → Orca에서 사용자 담당 작업 3개 실행. [클라이언트 개발 지침](client-development.md)을 따른다.
+사용자 요청 순서: 문서·데이터 관련 Markdown 지침 반영 및 푸시 → 개발환경과 프레임워크 초기 구성 준비·검증·재현 설정 푸시 → Orca에서 사용자 담당 작업 3개 실행. [클라이언트 개발 지침](client-development.md)을 따른다.
 
 기능별 PR과 로컬 검증 후 푸시를 사용한다. 자동 머지는 요청하지 않았다. 다른 팀원의 SaaS·프론트를 대신 구현하지 않는다.
 
 ## 검증 상태
 
 환경 검증은 [개발 환경](local-development.md), 기능 결과는 각 담당 README와 PR에 기록한다. 코드·실제 Tetragon 정책·실제 SaaS 수신·AI 호출 완료는 문서 존재만으로 주장하지 않는다.
+
+## 프레임워크 초기 구성 추가 요청
+
+Orca 기능 개발 전에 게시판 FastAPI 앱·SQLite 연결·Dockerfile, 전송기 HTTPX 환경·설정 검증·진입점을 준비한다. 설치한 가상환경/VM 자체는 Git에 넣지 않고 의존성 lock, VM 설정, 실행 방법을 푸시한다. CRUD·정책·실제 전송은 이후 각 작업에서 구현한다.
+
+## 개발 기반 검증 결과
+
+2026-10-31 FastAPI health/SQLite, HTTPX 설정 검증, 두 Docker 이미지 실행, 전용 Linux VM/Docker/BTF 및 Tetragon 기본 exec export를 확인했다. 세부 버전·명령·검증 범위는 [개발 환경](local-development.md)에 있다. 실제 정책 대응·전송·CRUD는 후속 Orca 작업이다.

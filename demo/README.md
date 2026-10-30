@@ -1,6 +1,6 @@
 # 게시판 서버 개발 지침
 
-사용자 담당. 프론트 없는 간단한 FastAPI + SQLite CRUD API를 구현한다. 현재 문서는 구현 기준이며 코드는 아직 없다.
+사용자 담당. 프론트 없는 간단한 FastAPI + SQLite CRUD API를 구현한다. 프레임워크 기반(/health·SQLite 연결·Dockerfile)은 준비했다. 글 CRUD는 아직 미구현이다.
 
 ## 범위
 
@@ -20,3 +20,7 @@ Tetragon probe와 보호 파일 준비는 tetragon/ 담당이다. 게시판 DB·
 ## 확인
 
 CRUD, 유효성 오류, 없는 ID, 재시작 후 저장 유지, 컨테이너 기동을 직접 확인한다. 실패/미확인 사항과 정확한 실행 명령을 이 README에 반영한다. 환경은 [개발 환경](../docs/local-development.md), 공통 범위는 [클라이언트 지침](../docs/client-development.md)을 따른다.
+
+## 준비된 기반
+
+server.py는 FastAPI 앱·lifespan·DB 확인 health, database.py는 연결/커밋/롤백, settings.py는 BOARD_DB_PATH를 제공한다. requirements.lock으로 의존성을 재현한다. [기동 방법](../docs/local-development.md)을 따른다. CRUD 추가 시 Dockerfile COPY 대상도 함께 갱신한다. SQLite 접속·재시작 확인은 글 CRUD 검증을 대신하지 않는다.

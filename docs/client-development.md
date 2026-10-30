@@ -4,7 +4,7 @@
 
 ## 작업 시작 전
 
-AGENTS.md, [개발 가이드](development-guide.md), [데이터 계약](api-contract.md), [개발 환경](local-development.md), 담당 README를 읽는다. 기능 코드는 각 워크트리에서 구현하며 같은 문서·환경 기준 커밋에서 분기한다.
+AGENTS.md, [개발 가이드](development-guide.md), [데이터 계약](api-contract.md), [개발 환경](local-development.md), 담당 README를 읽는다. 이미 준비된 FastAPI/SQLite와 HTTPX 설정 검증 기반을 이어서 기능 코드는 각 워크트리에서 구현하며 같은 문서·환경 기준 커밋에서 분기한다.
 
 | 작업 | 소유 범위 | 연결점 |
 |---|---|---|
@@ -16,7 +16,7 @@ AGENTS.md, [개발 가이드](development-guide.md), [데이터 계약](api-cont
 
 ## 연결 지점
 
-- 게시판 컨테이너 이름 hack-demo, 내부 HTTP 8080. DB는 /data/board.sqlite3 볼륨에 보관한다.
+- 통합/정책 시연 컨테이너 이름 hack-demo, 내부 HTTP 8080. DB는 /data/board.sqlite3 볼륨에 보관한다. 병렬 개발 중 게시판 담당은 hack-board-dev와 별도 포트/볼륨으로 검증하고, Tetragon 담당만 hack-demo를 관리한다.
 - Tetragon의 probe는 tetragon/ 소유다. 게시판 컨테이너에 read-only mount 또는 docker exec로 배치하며 demo/ 파일을 수정하지 않는다.
 - 보호 파일은 /tmp/hack-demo/protected.txt, 내용 demo-only. probe는 이 고정 경로만 읽는다. HTTP 임의 명령 실행 API는 만들지 않는다.
 - Tetragon JSONL은 Linux VM의 ~/2026-hack-runtime/tetragon/events.jsonl에 둔다. 전송기는 TETRAGON_LOG_PATH 설정으로 읽는다. 진단 로그와 혼합하지 않는다.
