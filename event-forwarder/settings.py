@@ -28,6 +28,6 @@ class Settings:
         if not 1 <= len(instance_id) <= 100:
             raise ValueError("INSTANCE_ID must contain 1 to 100 characters")
         token = os.environ["INGEST_TOKEN"]
-        if not token.isascii() or any(c.isspace() for c in token):
-            raise ValueError("INGEST_TOKEN must be an ASCII token without whitespace")
+        if any(not 33 <= ord(c) <= 126 for c in token):
+            raise ValueError("INGEST_TOKEN must be printable ASCII without whitespace")
         return cls(str(url), instance_id, token, Path(os.environ["TETRAGON_LOG_PATH"]).expanduser())
