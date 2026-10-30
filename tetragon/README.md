@@ -6,9 +6,41 @@
 
 전용 VM에서 exec/file/network/exit, 기존 probe SIGKILL·해제 후 복구, 관리 조회·정책 비활성/오류·센서 중단과 상태 파일을 실측했다. 성공/거부 연결 모두 이벤트가 생기므로 연결 성공/전송량/공격으로 표현하지 않는다. **개별 센서 목록은 v1.8.0 관리 API에서 미지원**이며 준비 정상으로 포장하지 않는다.
 
-`tetragon/`만 수정한다. 현재 사용자 승인에 따라 `demo-board`의 코드를 읽어 자기 `hack-demo` 이미지만 갱신했고, 볼륨/probe를 보존했다. `hack-board-dev`, 다른 DB/컨테이너, VM 생명주기와 Docker context는 변경하지 않았다. 다른 브랜치를 merge/cherry-pick하지 않았다.
+초기 Tetragon 담당 작업은 `tetragon/`만 수정했다. 당시 사용자 승인에 따라 `demo-board`의 코드를 읽어 자기 `hack-demo` 이미지만 갱신했고, 볼륨/probe를 보존했다. `hack-board-dev`, 다른 DB/컨테이너, VM 생명주기와 Docker context는 변경하지 않았다. 다른 브랜치를 merge/cherry-pick하지 않았다.
 
-## 5개 화면 후속 구현과 현재 전달 사항
+## 실제 게시판 서비스 관찰
+
+`service-observe`와 `service-network`는 준비된 `hack-demo`의 일반 서버 프로세스를 관찰하는 선택 기능이다. 기존 전용 probe 정책과 독립적으로 적용하며, 두 정책 모두 `Post`만 사용한다.
+
+- `service-observe`: 현재 게시판 컨테이너의 mount namespace 안에서 `/data/board.sqlite3`, `/data/board.sqlite3-wal`, `/data/board.sqlite3-shm`, `/data/board.sqlite3-journal` 네 경로의 `security_file_permission`을 관찰한다. mask 4는 읽기, 2는 쓰기로 매핑하며 파일 내용은 수집하지 않는다. 이 경로 밖의 애플리케이션·DB를 자동으로 지원하지 않는다.
+- `service-network`: 같은 namespace의 `tcp_connect`를 실행파일·목적지 제한 없이 관찰한다. 백엔드가 확인한 IPv4 TCP만 NETWORK로 매핑하며 IPv6는 OTHER다. 연결 시도 관찰을 성공·전송량·공격으로 해석하지 않는다.
+
+기존 환경을 다시 준비하거나 컨테이너를 재생성할 필요는 없다. 저장소 루트에서 최신 실행기와 정책을 VM에 복사한다.
+
+```sh
+TETRAGON_VM_HOME=$(limactl shell 2026-hack-client printenv HOME)
+limactl copy tetragon/runtime.py "2026-hack-client:$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src/"
+limactl copy -r tetragon/policies "2026-hack-client:$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src/"
+limactl shell 2026-hack-client
+```
+
+그 다음 VM 안에서 실행한다.
+
+```sh
+cd ~/2026-hack-runtime/tetragon/src
+python3 runtime.py health
+python3 runtime.py status
+python3 runtime.py service-observe
+python3 runtime.py service-network
+# 필요할 때 새 서비스 관찰 두 정책만 해제한다.
+# python3 runtime.py service-off
+```
+
+읽기·쓰기 mask의 의미는 [Tetragon 파일 접근 관찰 문서](https://tetragon.io/docs/use-cases/filename-access/)와 실제 원본에서 확인했다. 이후 [실제 이벤트 전송 실행](../docs/live-usage.md)을 따른다. `service-off`는 새 두 정책만, `off`는 기존 probe 정책을 포함한 소유 정책 다섯 개를 해제한다. 컨테이너를 재생성했다면 namespace가 바뀌므로 정책을 다시 적용한다.
+
+Tetragon 1.8.0에서 일반 FastAPI 게시판의 실제 생성·조회·수정·삭제를 실행하고, 각 회차 파일 원본 92건을 얻었다. 정상 수집·전송기 중단·수신 API 중단의 세 조건에서 총 276건을 원본 JSON과 DB 전체 값으로 대조해 각각 한 번 저장됨을 확인했다. 일반 Python의 컨테이너 내 HTTP 연결도 별도로 관찰했다. 최종 수신·브라우저 확인과 센서·AI·장기 운영의 미검증 범위는 [실제 게시판 검증 기록](../docs/live-usage.md#실제-게시판으로-확인한-범위)에 모았다. 아래 기록은 이 지원을 추가하기 전의 probe 검증 이력이다.
+
+## 5개 화면 후속 구현 당시 전달 사항
 
 | 제공 항목 | 구현·실측·연결 |
 |---|---|
@@ -22,11 +54,11 @@
 
 같은 대상 CRUD는 게시판 담당이 2026-10-30 UTC 19:40:44.425–19:40:45.010에 검증했다. 관찰 두 정책의 enabled/monitor_only를 전후 조회했고 HTTP 20요청(생성201, 조회/수정200, 오류422, 삭제204, 삭제 후404), 생성ID1만 정리·0건→0건을 기록했다. 직접 읽은 증거는 [demo-board f18c9f8의 same-target-crud.json](https://github.com/wnswp1122/2026_HACKATHON/blob/f18c9f813550e75bc311ea8999a4a100d327ab1f/demo/evidence/same-target-crud.json), [Draft PR #8](https://github.com/wnswp1122/2026_HACKATHON/pull/8)이다. 게시판 담당의 HTTP 검증과 이 작업의 커널 원본 검증은 구분한다. 이 이미지 갱신은 소스 통합이 아니다.
 
-이번 원본과 실행 기록은 [evidence/screen-plan](evidence/screen-plan/README.md)에 있다. `network`와 `network-off`는 파일 정책을 유지한 채 자기 네트워크 정책만 적용/해제한다. 파일 observe/enforce만 상호 교체한다. `off`는 자기 세 정책을 해제한다. 잘못된 정책 시연용 `hack-demo-status-error`는 삭제했다.
+이번 원본과 실행 기록은 [evidence/screen-plan](evidence/screen-plan/README.md)에 있다. `network`와 `network-off`는 파일 정책을 유지한 채 자기 네트워크 정책만 적용/해제한다. 파일 observe/enforce만 상호 교체한다. `off`는 현재 서비스 관찰 두 개를 포함한 자기 정책 다섯 개를 해제한다. 잘못된 정책 시연용 `hack-demo-status-error`는 삭제했다.
 
-현재 운영 시연 상태는 **observe/network 두 Post 정책 활성, enforce 해제, 자기 상태 수집기 실행**이다. 상태 수집기 PID와 로그는 VM `tetragon/status-collector.pid`, `status-collector.log`에 있다. 종료 절차와 stale 경계는 [status.md](status.md)를 따른다.
+당시 운영 시연 상태는 **observe/network 두 Post 정책 활성, enforce 해제, 자기 상태 수집기 실행**이다. 상태 수집기 PID와 로그는 VM `tetragon/status-collector.pid`, `status-collector.log`에 있다. 종료 절차와 stale 경계는 [status.md](status.md)를 따른다.
 
-실제 SaaS→5화면·AI 통합은 미검증이다. IPv6/UDP/accept/전송량·외부 통신 위치는 실측하지 않았다. 여기서 관찰한 loopback IP에 위치를 만들거나 GeoIP를 호출하지 않는다. 센서 목록 한계 때문에 준비 상태가 ready라고 주장할 수 없다. CI/자동 테스트를 추가하지 않았고 아래 기록은 실제 기동·수동 확인이다.
+당시 실제 SaaS→5화면·AI 통합은 미검증이었다. IPv6/UDP/accept/전송량·외부 통신 위치는 실측하지 않았다. 여기서 관찰한 loopback IP에 위치를 만들거나 GeoIP를 호출하지 않는다. 센서 목록 한계 때문에 준비 상태가 ready라고 주장할 수 없다. CI/자동 테스트를 추가하지 않았고 아래 기록은 실제 기동·수동 확인이다.
 
 ## 최초 구현 재현과 이전 실측 기록
 
@@ -113,9 +145,9 @@ python3 -m venv .venv
 
 기본 export는 호스트 전체 프로세스 이벤트를 포함한다. SaaS PostgreSQL을 같은 VM에 두면 이벤트 저장용 DB 접속의 프로세스 종료가 다시 수집되어 수신량이 늘어나는 순환이 생길 수 있다. 이 로컬 통합 구성에서만 `TETRAGON_EXPORT_DEMO_ONLY=1 .venv/bin/python runtime.py start`로 **게시판 컨테이너 전용 export**를 선택한다. `hack-demo`의 실제 ID 앞 31자를 Tetragon v1.8.0의 `container_id` 정규식 allowlist로 전달하며, 게시판의 실행·종료·정책 이벤트만 JSONL에 기록한다. 원본의 필드나 시각은 바꾸지 않는다.
 
-미설정 또는 `0`은 기존 전체 export이고, 다른 값은 오류다. 고객 서버 전체 관찰을 이 옵션으로 대체하면 안 된다. 컨테이너 이름 기반 정책이 아니므로 `hack-demo`를 재생성하면 ID도 바뀐다. `start`는 요청한 필터와 기존 컨테이너 옵션이 다르면 재생성을 안내하고 실패한다. 옵션 변경 시 소유 label 확인 → `runtime.py stop` → 중지된 `hack-tetragon`만 제거 → 동일 환경변수로 `start` → `observe`/`network` 재적용 순서로 진행한다. 게시판·DB 볼륨·이벤트 디렉터리는 삭제하지 않는다. 이후 재시작에도 같은 환경변수를 지정한다.
+미설정 또는 `0`은 기존 전체 export이고, 다른 값은 오류다. 고객 서버 전체 관찰을 이 옵션으로 대체하면 안 된다. 컨테이너 이름 기반 정책이 아니므로 `hack-demo`를 재생성하면 ID도 바뀐다. `start`는 요청한 필터와 기존 컨테이너 옵션이 다르면 재생성을 안내하고 실패한다. 옵션 변경 시 소유 label 확인 → `runtime.py stop` → 중지된 `hack-tetragon`만 제거 → 동일 환경변수로 `start` → 이전에 사용하던 정책(`observe`/`network` 또는 `service-observe`/`service-network`) 재적용 순서로 진행한다. 게시판·DB 볼륨·이벤트 디렉터리는 삭제하지 않는다. 이후 재시작에도 같은 환경변수를 지정한다.
 
-근거: [v1.8.0 Filter.container_id 정의](https://github.com/cilium/tetragon/blob/v1.8.0/api/v1/tetragon/events.proto), [JSON export filtering](https://tetragon.io/docs/concepts/events/#export-filtering). 이 필터는 JSON export 범위만 제한하며, gRPC 스트림이나 커널 정책 적용 범위를 바꾸지 않는다. 전송기의 파일 회전 시 종료·재시작 시 EOF부터 읽는 제한도 그대로다.
+근거: [v1.8.0 Filter.container_id 정의](https://github.com/cilium/tetragon/blob/v1.8.0/api/v1/tetragon/events.proto), [JSON export filtering](https://tetragon.io/docs/concepts/events/#export-filtering). 이 필터는 JSON export 범위만 제한하며, gRPC 스트림이나 커널 정책 적용 범위를 바꾸지 않는다. 영속 저장을 사용하지 않는 전송기는 재시작 시 EOF부터 읽는다. `SPOOL_DIR` 설정 시에는 저장 위치부터 이어가며, 파일 회전·축소 등 입력 불일치에서 종료하는 제한은 유지한다. [재시작과 파일 회전](../docs/live-usage.md#재시작과-파일-회전)을 참고한다.
 
 통합 실행에서 기본 전체 export는 PostgreSQL 프로세스 종료를 반복 수집했고 전송기는 2,818건 ACK 뒤 10MB 파일 회전으로 종료했다. 게시판 전용 옵션 적용 후 실제 file probe·성공/거부 network probe·health를 실행하자 SaaS에 실행 4건, 종료 4건, 파일 접근 2건, 네트워크 2건이 `live`로 저장됐다. 8초 뒤 재조회도 12건으로 유지되고 PostgreSQL 이벤트는 없었다. 두 네트워크 결과 모두 `outcome=unknown`, 센서 상태는 `SENSOR_STATUS_UNSUPPORTED`를 유지했다. 잘못된 옵션과 기존 설정 불일치는 종료 코드 1, 동일 옵션의 컨테이너 재시작과 정책 재적용은 성공했다. 이 확인은 공유 VM 통합 범위이며 장기 수집·회전 복구·무손실 전송 검증은 아니다.
 
@@ -136,7 +168,7 @@ VM의 위 `src` 폴더에서 실행한다.
 echo $?
 .venv/bin/python runtime.py health
 
-# 자기 정책 세 이름만 해제
+# 자기 정책 다섯 이름만 해제 (서비스 관찰 정책 포함)
 .venv/bin/python runtime.py off
 .venv/bin/python runtime.py status
 .venv/bin/python runtime.py probe
@@ -159,7 +191,7 @@ echo $?
 - **실시간 원본:** VM `~/2026-hack-runtime/tetragon/events.jsonl`. 이번 절대 경로는 `/home/junje.guest/2026-hack-runtime/tetragon/events.jsonl`. 컨테이너 `/var/log/tetragon/events.jsonl`에 연결한다.
 - mode `644`; 완결 줄의 JSON 객체 파싱을 확인했다. 기본 exec/exit와 정책 kprobe가 함께 들어 있다. 기본 exec 수집은 VM의 다른 프로세스도 포함하므로 전체 파일을 공유·커밋하지 않는다. 환경변수 수집은 켜지 않았다.
 - **진단:** `docker logs hack-tetragon`. 별도 저장은 `docker logs hack-tetragon > ~/2026-hack-runtime/tetragon/diagnostics.log 2>&1`. events.jsonl에 append하지 않는다.
-- 전송기 `TETRAGON_LOG_PATH`는 **VM에서 보이는** 위 절대 경로로 설정한다. Mac에 자동 공유되지 않는다. 전송기 실행·SaaS 도착은 미검증이다.
+- 전송기 `TETRAGON_LOG_PATH`는 **VM에서 보이는** 위 절대 경로로 설정한다. Mac에 자동 공유되지 않는다. 최초 기록 당시 전송기 실행·SaaS 도착은 미검증이었다. 이후 live 연결은 위 실제 게시판 검증 기록을 참고한다.
 - 크기 회전은 Tetragon 기본값(10MB)이다. 전송기 계약상 회전 감지 시 종료하므로 장기 무손실 수집을 보장하지 않는다.
 
 ```sh
