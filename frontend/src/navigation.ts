@@ -35,7 +35,7 @@ export function useNavigation() {
   function navigate(target: string) {
     const url = new URL(target, location.origin),
       current = new URL(location.href);
-    for (const name of ['snapshot', 'replay'])
+    for (const name of ['snapshot', 'replay', 'source', 'instanceId'])
       if (!url.searchParams.has(name) && current.searchParams.has(name))
         url.searchParams.set(name, current.searchParams.get(name)!);
     history.pushState(null, '', url);

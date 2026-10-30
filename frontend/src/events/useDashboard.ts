@@ -13,6 +13,8 @@ type Data = {
   events: EventPage;
   filters: PeriodFilters;
   successAt: string;
+  selection: Selection;
+  page: number;
 };
 export function useDashboard(selection: Selection, page: number, refresh: number, enabled = true) {
   const [data, setData] = useState<Data>();
@@ -43,6 +45,8 @@ export function useDashboard(selection: Selection, page: number, refresh: number
             events,
             filters,
             successAt: new Date().toISOString(),
+            selection,
+            page,
           });
           setError('');
         }
@@ -61,5 +65,5 @@ export function useDashboard(selection: Selection, page: number, refresh: number
       window.clearInterval(timer);
     };
   }, [selection, page, refresh, enabled]);
-  return { data, error, loading };
+  return { data: data?.selection === selection && data.page === page ? data : undefined, error, loading };
 }
