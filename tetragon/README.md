@@ -2,14 +2,14 @@
 
 ## 목표
 
-로컬 Linux에서 [시연 파일 읽기](../demo/README.md)를 관찰하고, 정책에 맞는 probe 프로세스의 종료를 재현한다. **아직 Tetragon 설치·정책·실측 이벤트는 없다.**
+로컬 Linux에서 [게시판 환경](../demo/README.md)의 시연 파일 읽기를 관찰하고, 정책에 맞는 probe 프로세스의 종료를 재현한다. **아직 Tetragon 설치·정책·실측 이벤트는 없다.**
 
 ## 준비 순서
 
-1. 사용 중인 Docker 실행 환경과 그 Linux 커널/아키텍처를 확인한다. macOS 자체 커널에 설치하지 않는다.
+1. 별도 로컬 Linux VM의 Docker와 Linux 커널/아키텍처를 확인한다. macOS 자체 커널에 설치하지 않는다.
 2. [공식 컨테이너 설치](https://tetragon.io/docs/installation/container/)를 읽고 BTF·권한·마운트 요구를 확인한다. 선택한 안정 이미지 버전과 실제 커널 버전을 README에 기록한다.
 3. 정책 없이 프로세스 실행 이벤트가 나오는지 확인한다.
-4. JSON export 파일을 개발 호스트의 `.local/tetragon/events.jsonl`에서 읽을 수 있게 연결한다. 파일 생성/권한/각 줄 JSON 여부를 확인한다. Tetragon 진단 로그를 이벤트 파일로 혼합하지 않는다.
+4. JSON export 파일을 Linux VM의 `~/2026-hack-runtime/tetragon/events.jsonl`에서 읽을 수 있게 연결한다. 파일 생성/권한/각 줄 JSON 여부를 확인한다. Tetragon 진단 로그를 이벤트 파일로 혼합하지 않는다.
 5. 이벤트가 준비되면 전송 담당자에게 호스트 경로를 전달한다. 전송기를 시작한 뒤 새 시연 활동을 발생시킨다.
 
 Docker Desktop의 지원을 가정하지 않는다. BTF나 훅이 지원되지 않으면 오류와 환경을 기록하고 로컬 Linux VM 대안을 검토한다. sample 파일 재생은 앱 개발에만 사용하며 실제 eBPF 관찰을 대신하지 않는다.
@@ -41,3 +41,9 @@ event.action과 실제 대응 결과는 별도 정보다. 프로세스 종료나
 ## 완료 조건
 
 관찰 전후·대응 적용·해제의 반복이 가능하고, 원본 이벤트와 실제 프로세스 종료 증거가 있다. 정책 검증을 완료하면 README에 사용한 정확한 명령을 추가한다. 현재 문서는 구현 절차만 제시한다.
+
+## 이번 담당 경계
+
+사용자는 Tetragon·게시판·전송기를 서로 다른 Orca 워크트리로 개발한다. 이 작업은 tetragon/만 수정하며 probe.py와 보호 파일 준비도 소유한다. 게시판 컨테이너 hack-demo에 read-only mount 또는 docker exec로 probe를 실행하고 demo/는 수정하지 않는다. 보호 파일은 /tmp/hack-demo/protected.txt, 내용 demo-only다. 게시판 HTTP/DB 프로세스는 대응 대상이 아니다.
+
+전송 규격은 [데이터 계약](../docs/api-contract.md), 작업 범위는 [클라이언트 지침](../docs/client-development.md)을 따른다. SaaS·프론트는 다른 팀원 담당이다. VM 설정은 공통 개발환경을 재사용하고 전역 Docker context를 변경하지 않는다.

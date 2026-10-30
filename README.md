@@ -1,41 +1,24 @@
-# Tetragon 기반 보안 모니터링 시연
+# Tetragon 기반 보안 모니터링 SaaS MVP
 
-Tetragon으로 로컬 서버 활동을 수집하고, 미리 준비한 정책의 대응 결과를 확인한다. 우리 서비스는 대시보드·화면 알림·AI 조사 안내를 제공한다.
+사용자 서버의 게시판 활동을 Tetragon으로 관찰하고 정책 대응 결과를 확인한다. 이벤트를 SaaS에 보내 대시보드에서 조회하고, 선택한 시점의 데이터와 대시보드 캡처를 함께 AI로 분석한다.
 
-**현재는 폴더, Python 의존성 설정과 개발 문서만 있다. 애플리케이션 코드·정책·실제 연동은 아직 없다.** 문서 속 `구현 후` 명령은 해당 코드를 만든 뒤 사용할 실행 계약이다.
+**현재 이 브랜치는 개발 기준과 환경을 준비하는 단계다. 기능 구현·실제 정책 대응·SaaS 통합 완료를 의미하지 않는다.**
 
-## 처음 시작할 때
+## 담당과 시작 문서
 
-1. [개발 시작 안내](docs/development-guide.md): 전체 목표, 만들 파일, 분담, AI에 전달할 요청.
-2. [기술 스택](docs/tech-stack.md): 선정 결과와 이유, 대안으로 바꿀 조건.
-3. [개발 환경](docs/local-development.md): 설치, 환경변수, 구현 후 실행 방법.
-4. [API 계약 v1](docs/api-contract.md): 원본 수신·정규화·조회·분석의 JSON 예시와 오류.
-5. [수동 확인](docs/manual-verification.md): 실제 실행과 기대 결과.
-6. [GitHub 협업 규칙](docs/github-collaboration.md): 이슈 없이 기능별 PR, 로컬 검증 후 푸시, 단위별 커밋, 검증 후 머지.
+| 담당 | 개발 범위 | 시작 문서 |
+|---|---|---|
+| 사용자 | 게시판 API·SQLite, Tetragon·eBPF, 전송기 | [클라이언트 개발 지침](docs/client-development.md) |
+| SaaS 담당 팀원 | 수신·인증·정규화·PostgreSQL·집계·스냅샷·AI | [데이터/API 계약](docs/api-contract.md), [백엔드](backend/README.md) |
+| 프론트 담당 팀원 | React 대시보드·기간 선택·캡처·분석 화면 | [프론트](frontend/README.md) |
 
-## 선정한 스택
+1. [개발 가이드](docs/development-guide.md): 역할과 병렬 작업 순서.
+2. [데이터/API 계약](docs/api-contract.md): 사용자 서버 → SaaS의 단일 계약.
+3. [개발 환경](docs/local-development.md): 환경변수·준비·검증 기록 위치.
+4. [수동 확인](docs/manual-verification.md): 컴포넌트·실제 수집·팀 통합 구분.
+5. [기술 스택](docs/tech-stack.md), [설계](docs/runtime-security-design.md), [결정](docs/decisions.md).
+6. [GitHub 협업 규칙](docs/github-collaboration.md): 검증 후 푸시, 기능별 PR.
 
-| 영역 | 선택 |
-|---|---|
-| 관찰·대응 | Tetragon + eBPF, 로컬 Linux + Docker |
-| 백엔드·전송 | Python 3.12, FastAPI, Uvicorn, HTTPX, Pydantic |
-| 화면 | HTML/CSS/JavaScript, 백엔드가 정적 파일 제공 |
-| 보관·갱신 | 메모리 최근 1,000건, 2초 폴링 |
-| AI | OpenAI Responses API, gpt-5-mini |
+게시판은 프론트 없는 간단한 CRUD API다. SaaS는 FastAPI 단일 서버 안에서 모듈을 나누고 PostgreSQL에 저장한다. 대시보드는 React·TypeScript·Vite·Recharts를 사용한다. 로그인·결제·운영 배포·CPU/메모리/HTTP 성능 수집은 이번 범위에서 제외한다.
 
-## 담당별 문서
-
-- [시연 서버](demo/README.md) · [Tetragon](tetragon/README.md) · [정책](tetragon/policies/README.md)
-- [전송 모듈](event-forwarder/README.md) · [백엔드](backend/README.md) · [화면](frontend/README.md)
-- [이벤트 처리](backend/src/events/README.md) · [AI 분석](backend/src/analysis/README.md)
-- [전체 설계](docs/runtime-security-design.md) · [결정 기록](docs/decisions.md) · [작업 기록](worklog/README.md)
-
-## Python 환경 준비
-
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -r backend/requirements.txt
-.venv/bin/python -m pip check
-```
-
-실제 비밀키는 `.env`에만 두고 커밋하지 않는다. `.env.example`은 현재 최소 예시이며 담당자가 [설정 계약](docs/local-development.md)에 맞춰 보완한다. Tetragon은 macOS 자체에서 실행되는 것이 아니라 호환되는 Linux 환경이 필요하다. Docker Desktop의 Linux VM 지원은 실제로 검증해야 한다.
+실제 키·토큰·DB·원본 런타임 데이터는 커밋하지 않는다. Tetragon은 별도 Linux VM에서 검증하며 Docker Desktop의 호환성을 가정하지 않는다.

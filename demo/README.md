@@ -1,43 +1,22 @@
-# 시연용 서버와 활동 재현
+# 게시판 서버 개발 지침
 
-## 목표
+사용자 담당. 프론트 없는 간단한 FastAPI + SQLite CRUD API를 구현한다. 현재 문서는 구현 기준이며 코드는 아직 없다.
 
-개발용 파일을 읽는 별도 프로세스로 Tetragon의 관찰과 대응을 반복 재현한다. 서버의 업무 기능을 복잡하게 만들지 않는다. **아래는 구현할 시나리오이며 아직 실행되지 않았다.**
+## 범위
 
-## 기본 시나리오
+- GET /health → 200 상태.
+- POST /posts → 201, GET /posts → 200 목록.
+- GET/PATCH/DELETE /posts/{id} → 상세·수정·삭제. 없는 ID는 404.
+- 글: id, title, content, createdAt, updatedAt. 제목 1~200자(공백만 거부), 내용 최대 10,000자. PATCH는 하나 이상의 필드, 삭제는 204.
+- SQLite는 BOARD_DB_PATH 설정, 컨테이너 기본 /data/board.sqlite3. 볼륨으로 재시작 후 유지한다.
+- 로그인·댓글·첨부·게시판 프론트·임의 명령 실행 API는 제외한다.
 
-- 서버 컨테이너: `hack-demo`라는 이름을 사용한다.
-- HTTP 서버: `/health`에서 `{"status":"ok"}`를 반환. 다른 경로는 404.
-- 파일: 컨테이너 내부 `/tmp/hack-demo/protected.txt`, 내용은 비밀정보가 아닌 `demo-only`.
-- 재현 프로세스: 별도 `probe.py`가 위 파일을 읽고 `READ_OK`를 출력한다. 일반 파일 권한으로는 읽을 수 있어야 정책 효과를 구분할 수 있다.
-- 선택한 파일 관찰 훅에서 읽기 활동을 확인한다. 대응 목표는 우선 **접근을 시도한 probe 프로세스 종료**로 제한한다. 실제 커널/정책이 지원하지 않으면 미완료로 남기고 팀에 알린다.
+## 소유 파일·연결
 
-이는 서비스 전체의 데이터 유출 방지 시나리오가 아니라, 하나의 고정된 활동에 대한 정책 대응 시연이다. 종료되기 전에 일부 파일 작업이 일어날 수 있으므로 파일 읽기 자체를 완전히 차단했다고 말하지 않는다.
+demo/ 안에 앱, requirements.txt, Dockerfile, 실행 README를 작성한다. 공통 docs/·backend/·frontend/는 수정하지 않는다. 컨테이너 이름 hack-demo, 내부 8080/호스트 8081을 사용한다. 다른 워크트리와 로컬 실행 포트가 충돌하면 별도 포트를 명시한다.
 
-## 작성할 파일
+Tetragon probe와 보호 파일 준비는 tetragon/ 담당이다. 게시판 DB·웹 서버는 시연 대응 대상이 아니다. 게시판 담당이 probe를 중복 작성하지 않는다.
 
-| 파일 | 구현 |
-|---|---|
-| `server.py` | Python 표준 라이브러리 HTTP 서버, `/health`, 내부 포트 8080 |
-| `probe.py` | 고정된 시연 파일을 읽는 별도 프로세스. 성공 시 READ_OK, 예외 시 이유와 실패 종료 |
-| `Dockerfile` | Python 3.12 이미지 기반으로 두 파일과 시연 파일을 준비. 고정한 이미지 태그를 기록 |
+## 확인
 
-Dockerfile은 시연 파일을 초기화하고 기본 프로세스로 server.py를 실행한다. 외부 HTTP 입력을 쉘 명령으로 실행하는 API를 만들지 않는다. Tetragon은 이 컨테이너에 내장하지 않고 별도 실행한다.
-
-## 구현 후 재현 명령
-
-아직 파일이 없으므로 구현 완료 후 저장소 루트에서 실행한다. 기존 같은 이름의 컨테이너를 삭제하기 전에 소유 작업인지 확인한다.
-
-```sh
-docker build -t hack-demo:local demo
-docker run --name hack-demo -d -p 127.0.0.1:8081:8080 hack-demo:local
-curl http://127.0.0.1:8081/health
-# Dockerfile에서 /app/probe.py로 배치한다.
-docker exec hack-demo python /app/probe.py
-```
-
-정책 전: READ_OK와 정상 종료. 관찰 정책: 읽기는 성공하고 이벤트가 생성됨. 대응 정책: 실제 실행 결과와 종료 상태를 기록하고 Tetragon 정책 이벤트와 비교. HTTP 서버는 계속 정상이어야 한다.
-
-## 전달 자료·완료
-
-Tetragon 담당자에게 파일의 실제 경로, probe의 실행 파일 경로, 명령과 기준 결과를 공유한다. 정책 적용 전·관찰·대응 후·해제 후를 반복하고 [수동 확인](../docs/manual-verification.md)에 결과를 기록한다. 서버 종료와 정책 해제는 서로 별개다.
+CRUD, 유효성 오류, 없는 ID, 재시작 후 저장 유지, 컨테이너 기동을 직접 확인한다. 실패/미확인 사항과 정확한 실행 명령을 이 README에 반영한다. 환경은 [개발 환경](../docs/local-development.md), 공통 범위는 [클라이언트 지침](../docs/client-development.md)을 따른다.

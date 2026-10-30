@@ -1,0 +1,1 @@
+{"time": "2026-10-31T03:30:12Z", "node_name": "demo-linux", "process_exec": {"process": {"exec_id": "sample-exec-1", "pid": 1234, "uid": 1000, "binary": "/usr/bin/cat", "arguments": "/tmp/hack-demo/protected.txt"}, "parent": {"binary": "/bin/sh"}}}
