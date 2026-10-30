@@ -30,3 +30,23 @@ CREATE TABLE IF NOT EXISTS analyses (
     instruction_version text NOT NULL,
     result jsonb NOT NULL
 );
+
+-- d960d3f 화면 계약: 기존 이벤트/스냅샷을 갱신하지 않는 additive migration.
+-- 상태만 전송하는 인스턴스도 허용하므로 instances FK를 두지 않는다.
+CREATE TABLE IF NOT EXISTS sensor_reports (
+    report_id uuid PRIMARY KEY,
+    instance_id text NOT NULL,
+    message_id uuid NOT NULL,
+    source text NOT NULL CHECK (source IN ('live', 'sample')),
+    observed_at timestamptz NOT NULL,
+    received_at timestamptz NOT NULL,
+    payload jsonb NOT NULL,
+    UNIQUE (instance_id, message_id)
+);
+CREATE INDEX IF NOT EXISTS sensor_reports_instance_source_observed_idx
+    ON sensor_reports(instance_id, source, observed_at DESC, received_at DESC);
+CREATE TABLE IF NOT EXISTS replays (
+    replay_id uuid PRIMARY KEY,
+    created_at timestamptz NOT NULL,
+    payload jsonb NOT NULL
+);
