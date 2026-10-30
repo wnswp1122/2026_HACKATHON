@@ -2,6 +2,18 @@
 
 import sample_network
 
+# Document-only addresses for the presentation's worldwide background traffic.
+GLOBAL_DESTINATIONS = [
+    ('198.51.100.20', 50.1109, 8.6821, 'DE'),
+    ('198.51.100.21', 51.5074, -0.1278, 'GB'),
+    ('198.51.100.22', 48.8566, 2.3522, 'FR'),
+    ('198.51.100.23', 43.6532, -79.3832, 'CA'),
+    ('198.51.100.24', -33.8688, 151.2093, 'AU'),
+    ('198.51.100.25', -23.5505, -46.6333, 'BR'),
+    ('198.51.100.26', 19.0760, 72.8777, 'IN'),
+    ('198.51.100.27', -33.9249, 18.4241, 'ZA'),
+]
+
 def locations(instance):
     def at(lat, lon, country):
         return dict(latitude=lat, longitude=lon, countryCode=country, source='configured')
@@ -13,6 +25,7 @@ def locations(instance):
         '203.0.113.30': at(37.7749, -122.4194, 'US'),  # 백업 저장소
         **sample_network.locations(),
         '203.0.113.90': at(1.3521, 103.8198, 'SG'),  # 예상 밖의 목적지
+        **{ip: at(lat, lon, country) for ip, lat, lon, country in GLOBAL_DESTINATIONS},
     }}
 
 
@@ -58,7 +71,8 @@ def stages(run, cycles):
         yield f'{prefix}: 게시글 후속 작업 큐 연결', connect(api, init, '192.0.2.12', 6379, cycle * 10 + 1)
         yield f'{prefix}: 첨부파일 읽기 관찰', read(worker, init, f'/srv/board/uploads/post-{cycle:04d}.jpg')
         yield f'{prefix}: 첨부파일 저장소 TLS 연결', connect(worker, init, '192.0.2.10', 443, cycle * 10 + 2)
-        yield f'{prefix}: 알림 제공자 TLS 연결', connect(worker, init, '198.51.100.20', 443, cycle * 10 + 3)
+        destination = GLOBAL_DESTINATIONS[(cycle - 1) % len(GLOBAL_DESTINATIONS)][0]
+        yield f'{prefix}: 해외 연동 서비스 TLS 연결', connect(worker, init, destination, 443, cycle * 10 + 3)
         if cycle % 5 == 0:
             backup = process(f'backup-{cycle}', 5000 + cycle, '/usr/bin/sqlite3')
             yield f'{prefix}: 예약 백업 실행', execution(backup, worker)

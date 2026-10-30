@@ -54,8 +54,10 @@ function Scene({ items, center }: { items: NetworkItem[]; center: [number, numbe
         showAtmosphere atmosphereColor="#22d3ee" atmosphereAltitude={0.16}
         hexPolygonsData={countries} hexPolygonResolution={3} hexPolygonMargin={0.45}
         hexPolygonUseDots hexPolygonColor={() => 'rgba(139,147,160,0.58)'}
-        arcsData={arcs} arcColor="color" arcStroke={0.6}
-        arcAltitudeAutoScale={0.45}
+        arcsData={arcs} arcColor="color" arcStroke={0.3}
+        arcAltitude="altitude" arcDashLength={0.65} arcDashGap={0.2}
+        arcDashInitialGap="dashOffset" arcDashAnimateTime={2400}
+        arcsTransitionDuration={0}
         pointsData={points} pointLat="lat" pointLng="lng" pointColor="color"
         pointRadius={0.4} pointAltitude={0.01}
         onGlobeReady={() => { if (ref.current) {
