@@ -1,6 +1,6 @@
 # AI 기반 서버 보안 모니터링·분석 플랫폼
 
-AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. 이 브랜치는 `saas-core` 소유 범위인 FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·이벤트/상태 수신·정규화를 구현한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 조회·스냅샷·AI·프론트와 실제 Tetragon 통합은 별도 작업이다.
+AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·이벤트/상태 수신·정규화와 조회·스냅샷·AI 모듈을 조립한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 아래 개별 워크트리 검증 기록과 최신 [전체 통합 기록](../worklog/integration-merge.md)을 구분한다.
 
 **현재 후속 계약 기준: `d960d3f` — [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [선행 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4).** 위 이전 docs와 충돌하면 이 새 계획을 우선한다. 원문 `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 saas-core 담당 행을 읽고 구현했다. LiteSOC는 시각 브랜드로 유지하며 이 브랜치에서는 UI/Figma를 수정하지 않는다.
 
@@ -17,7 +17,7 @@ backend/.venv/bin/python -m pip check
 
 공유 모듈은 동기 context manager `from db import get_connection`을 사용한다. `psycopg.Connection`과 `dict_row`를 제공하며 정상 종료 시 commit, 예외 시 rollback, 항상 close한다. `DATABASE_URL`은 필수이며 연결 제한은 3초다. SQL 값은 바인딩하고 JSONB는 `psycopg.types.json.Jsonb`를 사용한다. 스키마는 기존 공통 SQL에 d960d3f의 sensor_reports/replays를 더했다. `python db.py`로 명시적으로 적용하며 기존 DB에서도 새 테이블·인덱스만 추가하는 보존형 migration이다. 반복 적용할 수 있고 기존 테이블 컬럼·Event JSON·Snapshot·Analysis는 갱신하지 않는다. `IF NOT EXISTS`는 이름이 같은 기존 테이블의 잘못된 구조를 자동 수정하는 기능은 아니다.
 
-앱은 `src.ingest.router`, `src.events.router`, `src.snapshots.router`, `src.analysis.router`의 `router`를 접두사 추가 없이 조립한다. 각 router가 `/api`를 소유한다. 이 브랜치에는 **ingest만 구현**되어 있다. 나머지 세 router 부재는 시작 경고와 `/health`의 `missingModules`에 표시된다. 존재하는 router 내부의 import/의존성 오류는 그대로 기동 실패로 처리한다. 다른 모듈의 대체 구현은 추가하지 않았다.
+앱은 `src.ingest.router`, `src.events.router`, `src.snapshots.router`, `src.analysis.router`의 `router`를 접두사 추가 없이 조립한다. 각 router가 `/api`를 소유한다. 통합 버전에는 네 모듈이 모두 있다. `/health`에서 `loadedModules` 네 개와 `missingModules: []`를 확인한다. 모듈 파일 부재는 경고와 `missingModules`로, 존재하는 모듈 내부 import/의존성 오류는 기동 실패로 드러난다. `/health`만으로 테이블 생성을 확인할 수 없으므로 `python db.py` 적용 후 조회 API도 확인한다.
 
 ## 로컬 PostgreSQL과 SSH 터널
 
