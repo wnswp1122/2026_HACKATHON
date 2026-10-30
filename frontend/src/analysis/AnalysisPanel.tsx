@@ -205,7 +205,7 @@ export default function AnalysisPanel({
         <div role="alert" className="error-banner">
           <b>분석할 수 없습니다</b>
           <p>{error}</p>
-          {error.includes('AI_QUOTA_EXHAUSTED') && <a className="button" href="https://platform.openai.com/settings/organization/billing/" target="_blank" rel="noreferrer">OpenAI 크레딧 확인 ↗</a>}
+          {error.includes('AI_QUOTA_EXHAUSTED') && <a className="button" href="https://aistudio.google.com/usage" target="_blank" rel="noreferrer">Gemini 사용 한도 확인 ↗</a>}
         </div>
       )}
       {analysis && (
