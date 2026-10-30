@@ -4,11 +4,13 @@ export function EventTable({
   loading,
   onPage,
   onDetail,
+  selectedId,
 }: {
   events: EventPage;
   loading: boolean;
   onPage: (p: number) => void;
   onDetail: (id: string) => void;
+  selectedId: string;
 }) {
   const pages = Math.max(1, Math.ceil(events.total / events.pageSize));
   return (
@@ -32,7 +34,7 @@ export function EventTable({
           </thead>
           <tbody>
             {events.items.map((e) => (
-              <tr key={e.eventId}>
+              <tr key={e.eventId} className={selectedId === e.eventId ? 'selected-event-row' : ''} aria-selected={selectedId === e.eventId} tabIndex={0} onClick={() => onDetail(e.eventId)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onDetail(e.eventId); } }}>
                 <td>
                   {dateTime(e.receivedAt)}
                   <small>발생 {dateTime(e.occurredAt)}</small>
@@ -51,8 +53,8 @@ export function EventTable({
                   </span>
                 </td>
                 <td>
-                  <button className="text-button" onClick={() => onDetail(e.eventId)}>
-                    원본 상세
+                  <button className="text-button" aria-label={`${typeLabels[e.eventType]} 이벤트 상세 보기`} onClick={(event) => { event.stopPropagation(); onDetail(e.eventId); }}>
+                    상세 보기
                   </button>
                 </td>
               </tr>

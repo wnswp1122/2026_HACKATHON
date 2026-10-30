@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 export const routes = [
   { path: '/overview', label: '보안 개요', node: '387:2' },
+  { path: '/incidents', label: '보안 사고', node: '319:2' },
   { path: '/servers', label: '서버 보안 대시보드', node: '387:1158' },
   { path: '/telemetry', label: '텔레메트리 탐색기', node: '387:777' },
   { path: '/replay', label: '위험 전후 조사', node: '387:215' },

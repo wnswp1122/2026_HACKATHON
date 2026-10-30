@@ -27,5 +27,6 @@ __pycache__/
 
 # Client runtime data
 .local/
+.codex-verify-*/
 *.sqlite3
 *.sqlite3-*

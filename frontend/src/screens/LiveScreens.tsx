@@ -21,6 +21,7 @@ type Props = {
   refresh: number;
   live: ReturnType<typeof useDashboard>;
   onDetail: (id: string) => void;
+  selectedDetailId: string;
   onPage: (page: number) => void;
   onSelection: (selection: Selection) => void;
 };
@@ -113,7 +114,7 @@ export function Overview(props: Props) {
                 <thead><tr><th>수신 시각</th><th>서버</th><th>유형</th><th>정책</th><th>출처</th><th>상태</th><th>상세</th></tr></thead>
                 <tbody>
                   {data.events.items.slice(0, 6).map((event) => (
-                    <tr key={event.eventId} className={event.status === 'attention' ? 'log-attention' : ''}>
+                    <tr key={event.eventId} className={`${event.status === 'attention' ? 'log-attention' : ''} ${props.selectedDetailId === event.eventId ? 'selected-event' : ''}`}>
                       <td title={dateTime(event.receivedAt)}>{new Date(event.receivedAt).toLocaleTimeString('ko-KR', { hour12: false })}</td>
                       <td>{event.instanceId}</td>
                       <td>{typeLabels[event.eventType]}</td>
@@ -159,6 +160,7 @@ export function Telemetry(props: Props) {
               loading={props.live.loading}
               onPage={props.onPage}
               onDetail={props.onDetail}
+              selectedId={props.selectedDetailId}
             />
           )}
         </div>

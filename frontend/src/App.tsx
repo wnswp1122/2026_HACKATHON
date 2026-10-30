@@ -2,6 +2,8 @@ import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 're
 import { api } from './api';
 import { MonitoringSetup } from './MonitoringSetup';
 import { Detail } from './events/Detail';
+import { incidentApi } from './incidents/api';
+import './incidents/incidents.css';
 import { Filters, initialSelection } from './events/Filters';
 import { useDashboard } from './events/useDashboard';
 import { routes, useNavigation } from './navigation';
@@ -17,6 +19,7 @@ import {
   type Selection,
 } from './types';
 const AnalysisPanel = lazy(() => import('./analysis/AnalysisPanel'));
+const IncidentsScreen = lazy(() => import('./incidents/IncidentsScreen'));
 const Overview = lazy(() => import('./screens/LiveScreens').then((m) => ({ default: m.Overview })));
 const Telemetry = lazy(() =>
   import('./screens/LiveScreens').then((m) => ({ default: m.Telemetry })),
@@ -57,7 +60,7 @@ export default function App() {
     [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
   const [detailId, setDetailId] = useState(
-    path === '/telemetry' ? new URLSearchParams(location.search).get('event') || '' : '',
+    () => new URLSearchParams(location.search).get('event') || '',
   );
   const [briefing, setBriefing] = useState<Analysis>();
   const [analysisOpen, setAnalysisOpen] = useState(
@@ -69,7 +72,8 @@ export default function App() {
   const [replayFilters, setReplayFilters] = useState<PeriodFilters>();
   const analysisToggleRef = useRef<HTMLButtonElement>(null);
   const analysisCloseRef = useRef<HTMLButtonElement>(null);
-  const instances = useResource(api.instances, refresh);
+  const instances = useResource(api.instances, refresh, path !== '/incidents');
+  const recentIncidents = useResource(incidentApi.list, refresh, path === '/overview');
   const live = useDashboard(
     selection,
     page,
@@ -80,6 +84,11 @@ export default function App() {
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    const syncDetail = () => setDetailId(new URLSearchParams(location.search).get('event') || '');
+    addEventListener('popstate', syncDetail);
+    return () => removeEventListener('popstate', syncDetail);
   }, []);
   useEffect(() => {
     if (!configured) return;
@@ -97,11 +106,13 @@ export default function App() {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
       return;
     event.preventDefault();
-    if (!busy) navigate(target);
+    if (!busy) { setDetailId(''); navigate(target); }
   }
   function inspect(id: string) {
     if (busy) return;
-    navigate(`/telemetry?event=${encodeURIComponent(id)}`);
+    const url = new URL(location.href);
+    url.searchParams.set('event', id);
+    history.pushState(null, '', url);
     setDetailId(id);
   }
   function closeDetail() {
@@ -133,6 +144,7 @@ export default function App() {
   }, [analysisOpen]);
   function inspectReplay(filters: PeriodFilters) {
     if (busy) return;
+    setDetailId('');
     choose({
       ...filters,
       period: 'custom',
@@ -146,6 +158,7 @@ export default function App() {
     refresh,
     live,
     onDetail: inspect,
+    selectedDetailId: detailId,
     onPage: setPage,
     onSelection: choose,
   };
@@ -175,11 +188,11 @@ export default function App() {
     />
   );
   return (
-    <div className={`app-shell ${analysisOpen ? 'analysis-is-open' : ''}`}>
+    <div className={`app-shell ${analysisOpen ? 'analysis-is-open' : ''} ${detailId ? 'has-event-detail' : ''}`}>
       <aside className="sidebar">
         <a className="brand" href="/overview" onClick={(event) => go(event, '/overview')}>
-          <span className="brand-icon">L</span>
-          <b>LiteSOC</b>
+          <span className="brand-icon">S</span>
+          <b>Server Watch</b>
         </a>
         <p className="nav-caption">서버 보안 관찰</p>
         {routes.map((item) => (
@@ -197,7 +210,7 @@ export default function App() {
         ))}
       </aside>
       <div className="workspace">
-        <header className="topbar">
+        {path !== '/incidents' && <header className="topbar">
           <div>
             <span className="workspace-badge">L</span>
             <div className="monitoring-scope">
@@ -209,7 +222,7 @@ export default function App() {
           <div>
             <span className={`connection ${instances.error || stale ? 'delayed' : ''}`}>
               <i className="dot" />
-              {instances.error ? '조회 오류' : stale ? '응답 대기' : '조회 API 응답'}
+              {instances.error ? '인스턴스 조회 오류' : stale ? '인스턴스 응답 대기' : '인스턴스 API 응답'}
             </span>
             <span className="poll-label">2s 폴링</span>
             <button
@@ -232,16 +245,16 @@ export default function App() {
                 )
               }
             >
-              <b>AI</b> 안전 분석
+              <b>AI</b> 관찰 요약 분석
             </button>
           </div>
-        </header>
+        </header>}
         <main className={`screen-${path.slice(1)}`}>
           <div className="page-heading">
             <div>
               <h1>{route?.label || '화면을 찾을 수 없습니다'}</h1>
             </div>
-            <div className="heading-actions">
+            {path !== '/incidents' && <div className="heading-actions">
               {path !== '/replay' && (
                 <button
                   disabled={
@@ -255,16 +268,17 @@ export default function App() {
               <button disabled title="후속 지원 예정">
                 공유 · 예정
               </button>
-            </div>
+            </div>}
           </div>
-          {import.meta.env.VITE_DATA_LABEL && (
+          {import.meta.env.VITE_DATA_LABEL && path !== '/incidents' && (
             <div className="mock-label">
               {import.meta.env.VITE_DATA_LABEL} · 실제 수집·통합·실제 모델 분석 검증이 아닙니다.
             </div>
           )}
           {route && (
             <>
-              {briefing && (
+              {path === '/overview' && <section className="incident-preview"><div className="incident-preview-head"><div><span>사건별 확인</span><h2>최근 보안 사고</h2></div><a href="/incidents" onClick={(event) => go(event, '/incidents')}>전체 사건 보기 →</a></div>{recentIncidents.error ? <p>사건 API 미연결 · 사건 목록은 백엔드 계약 적용 후 표시됩니다.</p> : recentIncidents.loading && !recentIncidents.data ? <p>사건 조회 중…</p> : recentIncidents.data?.length ? <div className="incident-preview-items">{recentIncidents.data.slice(0, 3).map((item) => <a key={item.id} href={`/incidents?incident=${encodeURIComponent(item.id)}`} onClick={(event) => go(event, `/incidents?incident=${encodeURIComponent(item.id)}`)}><strong>{item.title}</strong><span>{item.server || '서버 미제공'} · {item.source === 'demo' ? 'DEMO · ' : ''}{({ unconfirmed: '미확인', investigating: '조사 중', resolved: '조치 완료', benign: '정상 작업 / 오탐', unknown: '상태 미제공' } as const)[item.status]}</span></a>)}</div> : <p>등록된 사건이 없습니다.</p>}</section>}
+              {briefing && path !== '/incidents' && (
                 <div className="ai-briefing">
                   <span className="ai-tag">AI 관찰</span>
                   <div>
@@ -279,7 +293,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {path !== '/readiness' && <Filters
+              {path !== '/readiness' && path !== '/incidents' && <Filters
                 timePicker={path === '/telemetry'}
                 range={live.data?.filters}
                 selection={selection}
@@ -294,6 +308,7 @@ export default function App() {
                 }
               >
                 {path === '/overview' && <Overview {...screenProps} />}
+                {path === '/incidents' && <IncidentsScreen refresh={refresh} onRefresh={() => setRefresh((value) => value + 1)} />}
                 {path === '/telemetry' && <Telemetry {...screenProps} />}
                 {path === '/servers' && <ServersScreen {...screenProps} />}
                 {path === '/readiness' && (
@@ -319,7 +334,7 @@ export default function App() {
               보안 개요로 이동
             </a>
           )}
-          <footer>LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
+          {path !== '/incidents' && <footer>Server Watch · 서버 보안 관찰과 사고 대응 기록</footer>}
         </main>
       </div>
       <aside
@@ -345,7 +360,7 @@ export default function App() {
           </Suspense>
         </div>
       </aside>
-      {detailId && <Detail id={detailId} onClose={closeDetail} />}
+      {detailId && <><button type="button" className="event-drawer-backdrop" aria-label="상세 닫기" onClick={closeDetail} /><Detail id={detailId} onClose={closeDetail} /></>}
     </div>
   );
 }
