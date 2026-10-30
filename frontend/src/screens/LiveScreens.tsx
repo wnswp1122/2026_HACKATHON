@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { api } from '../api';
 import { Charts } from '../events/Charts';
 import { EventTable } from '../events/EventTable';
 import type { useDashboard } from '../events/useDashboard';
-import { dateTime, number, type Dashboard, type PeriodFilters, type Selection } from '../types';
+import { dateTime, number, typeLabels, type Selection } from '../types';
 import {
-  AnalysisAside,
   ResourceStatus,
   Scope,
   ServerBars,
@@ -13,7 +11,7 @@ import {
   Stats,
   Timeline,
 } from './Common';
-import { NetworkGlobe, UnmappedNetwork } from './NetworkGlobe';
+import { NetworkGlobe } from './NetworkGlobe';
 import { RelationshipGraph } from './RelationshipGraph';
 import { usePeriodResource } from './useResource';
 
@@ -24,7 +22,6 @@ type Props = {
   onDetail: (id: string) => void;
   onPage: (page: number) => void;
   onSelection: (selection: Selection) => void;
-  onAnalyze: (filters?: PeriodFilters) => void;
 };
 function LiveStatus({ live }: Pick<Props, 'live'>) {
   return (
@@ -39,86 +36,77 @@ export function Overview(props: Props) {
   const { data } = props.live;
   return (
     <>
-      <LiveStatus live={props.live} />
-      {data && (
+      <ResourceStatus resource={network} label="네트워크" />
+      {network.data && (
         <>
-          <Scope filters={data.filters} />
-          <Stats
-            items={[
-              {
-                label: '전체 관찰 이벤트',
-                value: data.dashboard.total,
-                note: '선택 범위 · 수신 이벤트',
-              },
-              {
-                label: '정책 일치',
-                value: data.dashboard.attention,
-                note: '공격·차단 성공 판정 아님',
-                tone: 'warning',
-              },
-              {
-                label: '네트워크 관찰',
-                value: network.data?.value.totalNetworkEvents ?? '미확인',
-                note: '별도 네트워크 API의 범위',
-              },
-              {
-                label: '현재 수집 · live',
-                value: data.dashboard.bySource.find((s) => s.source === 'live')?.count || 0,
-                note: 'API에 저장된 live 출처',
-              },
-              {
-                label: '예시·재생 · sample',
-                value: data.dashboard.bySource.find((s) => s.source === 'sample')?.count || 0,
-                note: '실제 수집과 분리',
-              },
-            ]}
+          <Scope filters={network.data.filters} />
+          <NetworkGlobe
+            data={network.data.value}
+            status={network.data.filters.status}
+            disabled={network.loading}
+            onStatusChange={(status) => props.onSelection({ ...props.selection, status })}
           />
         </>
       )}
-      <div className="overview-grid">
-        <div>
-          <ResourceStatus resource={network} label="관찰 연결·위치" />
-          {network.data && (
-            <>
-              <Scope filters={network.data.filters} />
-              <NetworkGlobe data={network.data.value} />
-            </>
-          )}
+      <LiveStatus live={props.live} />
+      {data && (
+        <>
+          <div className={`attention-summary ${data.dashboard.attention ? 'has-matches' : ''}`}>
+            <div>
+              <span className="dot" />
+              <strong>{data.dashboard.attention ? `주의 ${number(data.dashboard.attention)}건` : data.dashboard.total ? '주의 없음' : '관찰 이벤트 없음'}</strong>
+            </div>
+            {data.dashboard.attention > 0 && (
+              <button disabled={props.live.loading || !!props.live.error} onClick={() => props.onSelection({ ...props.selection, status: props.selection.status === 'attention' ? undefined : 'attention' })}>
+                {props.selection.status === 'attention' ? '전체 이벤트 보기' : '주의만 보기'} →
+              </button>
+            )}
+          </div>
+          <p className="policy-explanation">주의란? 이벤트의 정책명이 등록된 경고 정책명과 일치한다는 뜻입니다. 공격 확정이나 차단 성공을 뜻하지 않습니다.</p>
+          <Stats items={[
+            { label: '관찰 이벤트', value: data.dashboard.total },
+            { label: '주의', value: data.dashboard.attention, tone: data.dashboard.attention ? 'warning' : '' },
+            { label: '네트워크 이벤트', value: network.data?.value.totalNetworkEvents ?? '—' },
+          ]} />
+        </>
+      )}
+      {data && (
+        <div className="overview-details">
+          <Timeline dashboard={data.dashboard} />
+          <article className="panel recent-events overview-logs">
+            <div className="panel-heading">
+              <h3>최근 이벤트</h3>
+              <div className="log-actions">
+                <span>{Math.min(6, data.events.items.length)}건</span>
+                <button
+                  aria-pressed={data.filters.status === 'attention'}
+                  disabled={props.live.loading}
+                  onClick={() => props.onSelection({ ...props.selection, status: props.selection.status === 'attention' ? undefined : 'attention' })}
+                >주의만</button>
+              </div>
+            </div>
+            <div className="table-scroll">
+              <table>
+                <thead><tr><th>수신 시각</th><th>서버</th><th>유형</th><th>정책</th><th>출처</th><th>상태</th><th>상세</th></tr></thead>
+                <tbody>
+                  {data.events.items.slice(0, 6).map((event) => (
+                    <tr key={event.eventId} className={event.status === 'attention' ? 'log-attention' : ''}>
+                      <td title={dateTime(event.receivedAt)}>{new Date(event.receivedAt).toLocaleTimeString('ko-KR', { hour12: false })}</td>
+                      <td>{event.instanceId}</td>
+                      <td>{typeLabels[event.eventType]}</td>
+                      <td>{event.policyName || '—'}</td>
+                      <td><span className={`badge ${event.source}`}>{event.source}</span></td>
+                      <td className={event.status === 'attention' ? 'pink-text' : ''}>{event.status === 'attention' ? '주의' : '관찰'}</td>
+                      <td><button aria-label={`${event.instanceId} ${typeLabels[event.eventType]} 이벤트 상세`} onClick={() => props.onDetail(event.eventId)}>보기</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!data.events.items.length && <p className="empty">이벤트 없음</p>}
+          </article>
         </div>
-        <div className="stack">
-          {data && (
-            <>
-              <Timeline dashboard={data.dashboard} to={data.filters.to} />
-              {network.data && <UnmappedNetwork data={network.data.value} />}
-              <article className="panel recent-events">
-                <div className="panel-heading">
-                  <h3>최근 관찰 이벤트</h3>
-                  <span>최신 목록 중 6건</span>
-                </div>
-                {data.events.items.slice(0, 6).map((event) => (
-                  <button
-                    className="recent-event"
-                    key={event.eventId}
-                    onClick={() => props.onDetail(event.eventId)}
-                  >
-                    <span className={`badge ${event.source}`}>{event.source}</span>
-                    <span>
-                      {event.instanceId}
-                      <small>{event.eventType}</small>
-                    </span>
-                    <span className={event.status === 'attention' ? 'pink-text' : ''}>
-                      {event.status === 'attention' ? '정책 일치' : '관찰'}
-                    </span>
-                  </button>
-                ))}
-                {!data.events.items.length && (
-                  <p className="empty">선택 범위에 이벤트가 없습니다.</p>
-                )}
-              </article>
-            </>
-          )}
-        </div>
-      </div>
+      )}
     </>
   );
 }
@@ -128,24 +116,14 @@ export function Telemetry(props: Props) {
   return (
     <>
       <LiveStatus live={props.live} />
-      {data && <Scope filters={data.filters} />}
+      {data && <Scope filters={data.filters} compact />}
       <div className="telemetry-grid">
         <div className="stack">
-          {data && (
-            <>
-              <Timeline dashboard={data.dashboard} to={data.filters.to} rate />
-              <TimeWindow
-                dashboard={data.dashboard}
-                filters={data.filters}
-                selection={props.selection}
-                onSelection={props.onSelection}
-              />
-            </>
-          )}
+          {data && <Timeline dashboard={data.dashboard} explain />}
           <ResourceStatus resource={servers} label="서버별 집계" />
           {servers.data && (
             <>
-              <Scope filters={servers.data.filters} />
+              <Scope filters={servers.data.filters} compact />
               <ServerTable
                 items={servers.data.value.items}
                 onSelect={(id) => props.onSelection({ ...props.selection, instanceId: id })}
@@ -161,7 +139,6 @@ export function Telemetry(props: Props) {
             />
           )}
         </div>
-        <AnalysisAside onAnalyze={() => props.onAnalyze(data?.filters)} />
       </div>
     </>
   );
@@ -179,26 +156,22 @@ export function ServersScreen(props: Props) {
           <Stats
             items={[
               {
-                label: '정책 일치',
+                label: '주의',
                 value: data.dashboard.attention,
-                note: '공격 확정 아님',
                 tone: 'warning',
               },
               {
                 label: '관찰 이벤트',
                 value: data.dashboard.total,
-                note: '전체 범위의 수신 이벤트',
                 tone: 'cyan-tile',
               },
               {
                 label: '관찰 서버',
                 value: servers.data?.value.items.length ?? '미확인',
-                note: '보호율·보안 정상 판정 아님',
               },
               {
                 label: '격리·차단 성공',
                 value: '미확인',
-                note: '현재 outcome=unknown',
                 tone: 'amber-tile',
               },
             ]}
@@ -221,6 +194,8 @@ export function ServersScreen(props: Props) {
         </div>
         <div className="stack">
           {data && <Charts data={data.dashboard} />}
+        </div>
+        <div className="stack server-relationships">
           <ResourceStatus resource={graph} label="프로세스·통신 관계" />
           {graph.data && (
             <>
@@ -230,107 +205,6 @@ export function ServersScreen(props: Props) {
           )}
         </div>
       </div>
-      <p className="hint">
-        관찰 서버 {servers.data ? number(servers.data.value.items.length) : '미확인'}대는 선택
-        범위에 이벤트가 있는 서버입니다. 준비 상태는 별도 준비 점검에서 확인합니다.
-      </p>
-      <AnalysisAside onAnalyze={() => props.onAnalyze(data?.filters)} />
     </>
-  );
-}
-
-function TimeWindow({
-  dashboard,
-  filters,
-  selection,
-  onSelection,
-}: {
-  dashboard: Dashboard;
-  filters: PeriodFilters;
-  selection: Selection;
-  onSelection: (value: Selection) => void;
-}) {
-  const [window, setWindow] = useState<{
-    dashboard: Dashboard;
-    filters: PeriodFilters;
-    start: number;
-    end: number;
-  }>();
-  const value = window || { dashboard, filters, start: 0, end: dashboard.timeline.length };
-  const rows = value.dashboard.timeline;
-  if (!rows.length) return null;
-  const from = rows[value.start]?.bucketStart || value.filters.from;
-  const to = rows[value.end]?.bucketStart || value.filters.to;
-  const max = Math.max(1, ...rows.map((row) => row.count));
-  const local = (date: string) => {
-    const d = new Date(date);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 23);
-  };
-  return (
-    <article className="panel time-window">
-      <div className="panel-heading">
-        <h3>수신 기간 구간 선택</h3>
-        <span>조작 중에는 선택 기준을 고정합니다.</span>
-      </div>
-      <div className="mini-timeline">
-        {rows.map((row, i) => (
-          <span
-            key={row.bucketStart}
-            style={{
-              height: `${Math.max(3, (row.count / max) * 100)}%`,
-              opacity: i >= value.start && i < value.end ? 1 : 0.2,
-            }}
-            title={`${dateTime(row.bucketStart)} · ${row.count}건`}
-          />
-        ))}
-      </div>
-      <div className="window-controls">
-        <label>
-          구간 시작
-          <input
-            aria-label="구간 시작 버킷"
-            type="range"
-            min="0"
-            max={rows.length - 1}
-            value={value.start}
-            onChange={(e) =>
-              setWindow({
-                ...value,
-                start: Number(e.target.value),
-                end: Math.max(value.end, Number(e.target.value) + 1),
-              })
-            }
-          />
-        </label>
-        <label>
-          구간 종료
-          <input
-            aria-label="구간 종료 버킷"
-            type="range"
-            min="1"
-            max={rows.length}
-            value={value.end}
-            onChange={(e) =>
-              setWindow({
-                ...value,
-                end: Number(e.target.value),
-                start: Math.min(value.start, Number(e.target.value) - 1),
-              })
-            }
-          />
-        </label>
-        <button
-          onClick={() =>
-            onSelection({ ...selection, period: 'custom', from: local(from), to: local(to) })
-          }
-        >
-          선택 구간 적용
-        </button>
-        <button onClick={() => setWindow(undefined)}>구간 초기화</button>
-      </div>
-      <p className="hint">
-        {dateTime(from)} ~ {dateTime(to)} · 종료 제외
-      </p>
-    </article>
   );
 }

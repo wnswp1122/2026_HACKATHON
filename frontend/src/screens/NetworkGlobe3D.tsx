@@ -76,7 +76,6 @@ function Scene({ items, center }: { items: NetworkItem[]; center: [number, numbe
     </div>
     {webgl && <button onClick={() => setPaused(value => !value)}>{paused ? '자동 회전 시작' : '자동 회전 중지'}</button>}
     {mapError && <p role="status" className="hint">국가 경계를 불러오지 못했습니다. 관찰 위치와 목록은 계속 표시합니다.</p>}
-    {!points.length && <p className="hint">표시할 위치가 없습니다. 임의 좌표를 만들지 않습니다.</p>}
   </>;
 }
 
