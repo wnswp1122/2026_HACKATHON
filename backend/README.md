@@ -2,7 +2,7 @@
 
 AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. 이 브랜치는 `saas-core` 소유 범위인 FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·이벤트/상태 수신·정규화를 구현한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 조회·스냅샷·AI·프론트와 실제 Tetragon 통합은 별도 작업이다.
 
-**현재 후속 계약 기준: `d960d3f` — [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3f/docs/tetragon-screen-plan.md), [선행 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4).** 위 이전 docs와 충돌하면 이 새 계획을 우선한다. 원문 `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 saas-core 담당 행을 읽고 구현했다. LiteSOC는 시각 브랜드로 유지하며 이 브랜치에서는 UI/Figma를 수정하지 않는다.
+**현재 후속 계약 기준: `d960d3f` — [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [선행 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4).** 위 이전 docs와 충돌하면 이 새 계획을 우선한다. 원문 `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 saas-core 담당 행을 읽고 구현했다. LiteSOC는 시각 브랜드로 유지하며 이 브랜치에서는 UI/Figma를 수정하지 않는다.
 
 ## 실행 기반과 연결 지점
 
@@ -177,7 +177,7 @@ Docker Hub의 VM 직접 pull에서 TLS timeout이 반복됐다. 실제 ARM64 man
 
 ### 활성화한 매핑과 필요한 입력
 
-Tetragon 인접 워크트리의 기존 기준 커밋 `5f7b473`, `tetragon/field-mapping.md`, `tetragon/policies/observe.yaml`, `tetragon/evidence/final-events.jsonl`을 읽었다. 이어서 d960d3f 작업의 사용자 전달 실측 매핑, 진행 중인 `tetragon/policies/network.yaml`, `tetragon/evidence/screen-plan/runtime-results.json`·상태 예시 6개를 확인했다. v1.8.0/kernel 6.8.0-142-generic의 비밀 없는 격리 시연이다. VM JSONL에서 알려진 정책·훅·전용 net-probe binary에 해당하는 원본 2줄만 읽어 sample로 재생했다. 원본은 Git 제외 `.local/`에만 두었으며, 다른 담당 코드는 복사/병합하지 않았다.
+Tetragon 인접 워크트리의 기존 기준 커밋 `5f7b473`, `tetragon/field-mapping.md`, `tetragon/policies/observe.yaml`, `tetragon/evidence/final-events.jsonl`을 읽었다. 이어서 d960d3f 후속 작업의 고정 커밋 [`a3f160a`](https://github.com/wnswp1122/2026_HACKATHON/commit/a3f160ad64cb34620f711bc169714ec6f5503a4c), [Draft PR #12](https://github.com/wnswp1122/2026_HACKATHON/pull/12)의 [최종 매핑](https://github.com/wnswp1122/2026_HACKATHON/blob/a3f160ad64cb34620f711bc169714ec6f5503a4c/tetragon/field-mapping.md)·정책·실행 결과·상태 증거를 확인했다. 아래 기존 실행 기록과 별도로 고정 원본 29줄의 재생 결과를 마지막 절에 남겼다. v1.8.0/kernel 6.8.0-142-generic의 비밀 없는 격리 시연이다. VM JSONL에서 알려진 정책·훅·전용 net-probe binary에 해당하는 원본 2줄만 읽어 sample로 재생했다. 원본은 Git 제외 `.local/`에만 두었으며, 다른 담당 코드는 복사/병합하지 않았다.
 
 - **파일:** policy_name이 hack-demo-observe 또는 hack-demo-enforce, function_name이 security_file_permission, args[0].file_arg.path가 비어 있지 않은 문자열, args[1].int_arg가 실제 정수 4인 경우만 FILE_ACCESS. `file={path,operation:"read"}`, target=path다. 숫자 문자열/틀린 인자 순서/다른 정책·훅은 OTHER와 null이다. 이 훅의 의미는 읽기 권한 확인 관찰이며 읽기 성공이나 바이트 차단을 입증하지 않는다. 같은 구조를 live 수신에도 매핑할 수 있으나 이번 SaaS 검증은 보관된 증거의 **sample 재생**이다.
 - **네트워크:** policy_name=hack-demo-network, function_name=tcp_connect, args[0].sock_arg 객체와 그 안의 family=AF_INET/type=SOCK_STREAM/protocol=IPPROTO_TCP가 모두 일치할 때만 NETWORK. saddr/sport/daddr/dport를 sourceIp/sourcePort/destinationIp/destinationPort로, 확인된 protocol 문자열은 **TCP**로, operation은 **connect**로 명시 매핑한다. 유효한 IP와 실제 0~65535 정수 포트만 보존하며 누락/오류 값은 null이다. 알 수 없는 정책·훅·sock family/type/protocol은 OTHER/network=null이다. 확인된 IPv4 TCP 구조는 live와 sample 모두 같은 방식으로 정규화한다. AF_INET6 등 별도 정책의 live 매핑은 실측 전 지원하지 않는다.
@@ -205,3 +205,15 @@ Python 3.12.2, 기존 고정 의존성과 전용 PostgreSQL 17.11을 그대로 �
 | 실행·문서 | 실제 OpenAPI title/새 상태 요청 스키마의 중첩 참조 확인. health 200, loaded=[ingest], missing=[events,snapshots,analysis]. pip check·Docker 이미지 빌드·diff 검사 성공. 이미지 컨테이너 실행 검증은 하지 않음 |
 
 **필요한 후속 입력·미검증:** 실제 이벤트/상태 생성기→전송기→본 수신기 live 연결, data/AI/frontend 모듈 조립과 5개 화면 사용자 흐름. data의 진행 중 코드와 payload.collector/tetragon·allowed_instance_ids() 연결이 맞는 것은 정적으로 읽었지만 실행 통합하지 않았다. readiness 판정/리플레이 고정 조회·AI 안전 Snapshot의 신규 화면 통합은 각 담당 범위이며 본 브랜치에서 대체 구현하지 않았다. **실제 전체 통합은 미검증**이다. 기존 앱/전용 DB/SSH 터널은 실행 상태다.
+
+
+## a3f160a 고정 source 후속 검증
+
+계약 기준은 위 `d960d3f`로 유지한다. 입력은 `feat/tetragon-runtime`의 고정 커밋 `a3f160ad64cb34620f711bc169714ec6f5503a4c`이며 [PR #12](https://github.com/wnswp1122/2026_HACKATHON/pull/12)가 해당 head의 열린 Draft인 것을 조회했다. 인접 워크트리의 변경 가능한 파일 대신 `git show <고정 SHA>:<경로>`로 원본을 읽었다.
+
+- [원본 29줄](https://github.com/wnswp1122/2026_HACKATHON/blob/a3f160ad64cb34620f711bc169714ec6f5503a4c/tetragon/evidence/screen-plan/events.jsonl)을 **source=sample**로 실제 포트 8000 수신기에 재생했다. 신규 모두 201, 원본 JSON 값·부모 execId 일치, 모든 재전송 200/같은 eventId를 확인했다. 정규화 결과는 PROCESS_EXEC 10건, PROCESS_EXIT 10건, FILE_ACCESS 6건, NETWORK 3건이며 outcome은 전부 unknown이다. file operation=read, network protocol=TCP/operation=connect가 고정 표와 일치했다.
+- [부정 대조 기록](https://github.com/wnswp1122/2026_HACKATHON/blob/a3f160ad64cb34620f711bc169714ec6f5503a4c/tetragon/evidence/screen-plan/README.md)의 일반 Python/다른 포트/정책 disabled/해제 후 4개 프로세스에는 exec/exit만 존재하는 것을 대조했다. 수신기가 파일·네트워크 관찰을 만들어 넣지 않았다. 성공·ECONNREFUSED의 관찰을 접속 성공/실패 outcome으로 바꾸지 않았다.
+- [상태 증거](https://github.com/wnswp1122/2026_HACKATHON/tree/a3f160ad64cb34620f711bc169714ec6f5503a4c/tetragon/evidence/screen-plan)의 status.json, enabled/disabled/no-policies/policy-error/sensor-stopped/unreachable와 periodic-evidence의 최종 COLLECTOR_STOPPED까지 **8개 보고**를 sample로 수신했다. 신규 201, 재전송 200/같은 reportId, observedAt/receivedAt/payload 불변을 확인했다. 빈 sensors, SENSOR_STATUS_UNSUPPORTED/unknown, TETRAGON_STOPPED·TETRAGON_UNREACHABLE·COLLECTOR_STOPPED/error와 실제 정책 상태를 모두 그대로 보존했다. writer 실패 증거는 상태 본문이 아니므로 전송하지 않았다.
+- 현재 구현이 고정된 실측 표와 일치해 기능 코드 수정은 필요하지 않았다. 이번 변경은 이 README의 출처·검증 기록뿐이다. core 전용 검증 DB는 Event **83건**, 상태 **24건**이며 모두 sample, live 행은 0건이다. `/health` 200과 ingest 조립/3개 모듈 부재 표시도 확인했다.
+
+이 검증은 **고정 증거의 수신·저장 재생**이다. 30초 수집기/전송기의 현재 live 연결, data readiness의 실제 화면 판정, SaaS→5개 화면·AI의 전체 통합은 여전히 미검증이다. Tetragon의 현재 실행 상태를 재점검하거나 공유 VM·수집기·정책을 조작하지 않았다. 원본을 이 브랜치 Git에 복사하지 않았고 master 머지나 타 브랜치 병합도 하지 않았다.
