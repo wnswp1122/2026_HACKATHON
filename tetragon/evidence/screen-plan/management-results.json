@@ -1,0 +1,103 @@
+[
+  {
+    "stage": "server-version",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "version",
+      "--server"
+    ],
+    "exitCode": 0,
+    "stdout": "CLI version: v1.8.0\nServer version: v1.8.0\n",
+    "stderr": ""
+  },
+  {
+    "stage": "server-health",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "status"
+    ],
+    "exitCode": 0,
+    "stdout": "Health Status: running\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensors-list-unsupported",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "sensors",
+      "list"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "Error: failed to list sensors: rpc error: code = Unknown desc = ListSensors is deprecated\n"
+  },
+  {
+    "stage": "actual-policies",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "tracingpolicy",
+      "list",
+      "-o",
+      "json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"policies\":[{\"id\":\"6\", \"name\":\"hack-demo-observe\", \"sensors\":[\"generic_kprobe\"], \"enabled\":true, \"state\":\"TP_STATE_ENABLED\", \"kernel_memory_bytes\":\"544480\", \"mode\":\"TP_MODE_MONITOR_ONLY\", \"stats\":{\"action_counters\":{\"post\":\"2\"}, \"selector_action_counters\":[{\"hook\":\"kprobe:security_file_permission\", \"hook_index\":0, \"selector_index\":0, \"action_counters\":{\"post\":\"2\"}}]}, \"domain\":\"grpc\", \"hook_statuses\":[{\"section\":\"kprobes\", \"state\":\"STATUS_LOADED\", \"hook_description\":\"security_file_permission\"}]}, {\"id\":\"4\", \"name\":\"hack-demo-network\", \"sensors\":[\"generic_kprobe\"], \"enabled\":true, \"state\":\"TP_STATE_ENABLED\", \"kernel_memory_bytes\":\"544480\", \"mode\":\"TP_MODE_MONITOR_ONLY\", \"stats\":{\"action_counters\":{\"post\":\"1\"}, \"selector_action_counters\":[{\"hook\":\"kprobe:tcp_connect\", \"hook_index\":0, \"selector_index\":0, \"action_counters\":{\"post\":\"1\"}}]}, \"domain\":\"grpc\", \"hook_statuses\":[{\"section\":\"kprobes\", \"state\":\"STATUS_LOADED\", \"hook_description\":\"tcp_connect\"}]}]}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "kernel",
+    "command": [
+      "uname",
+      "-r"
+    ],
+    "exitCode": 0,
+    "stdout": "6.8.0-142-generic\n",
+    "stderr": ""
+  },
+  {
+    "stage": "tetragon-image",
+    "command": [
+      "docker",
+      "inspect",
+      "hack-tetragon",
+      "--format",
+      "{{.Config.Image}}"
+    ],
+    "exitCode": 0,
+    "stdout": "quay.io/cilium/tetragon@sha256:5ed9088a1582131d71b06c98e0d549a37a71ae63ab13aabefc7a47553c822a9d\n",
+    "stderr": ""
+  },
+  {
+    "stage": "demo-image-and-owner",
+    "command": [
+      "docker",
+      "inspect",
+      "hack-demo",
+      "--format",
+      "{{.Image}} {{json .Config.Labels}}"
+    ],
+    "exitCode": 0,
+    "stdout": "sha256:3a783171c3a0fbe422681254ac1897ba84782adccfbed86444247a17dbace094 {\"io.2026-hack.owner\":\"2026-hack-tetragon-runtime\"}\n",
+    "stderr": ""
+  }
+]

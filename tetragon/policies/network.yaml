@@ -1,0 +1,36 @@
+# Tetragon v1.8.0 / Ubuntu ARM64 kernel 6.8.0-142-generic.
+# tcp_connect(struct sock *sk): arg0=sock. 연결 시도 관찰이며 성공/전송량 아님.
+# 별도 net-probe AND hack-demo Mnt AND 고정 loopback IP/포트. Post만 사용.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: hack-demo-network
+spec:
+  kprobes:
+  - call: tcp_connect
+    syscall: false
+    args:
+    - index: 0
+      type: sock
+    selectors:
+    - matchBinaries:
+      - operator: In
+        values:
+        - /usr/local/bin/hack-demo-net-probe
+      matchNamespaces:
+      - namespace: Mnt
+        operator: In
+        values:
+        - "__HACK_DEMO_MNT_NS__"
+      matchArgs:
+      - index: 0
+        operator: DAddr
+        values:
+        - "127.0.0.1/32"
+      - index: 0
+        operator: DPort
+        values:
+        - "8080"
+        - "18080"
+      matchActions:
+      - action: Post

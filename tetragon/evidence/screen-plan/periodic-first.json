@@ -1,0 +1,97 @@
+{
+  "intervalSeconds": 30,
+  "samples": [
+    {
+      "observedAt": "2026-10-30T19:44:35.054310Z",
+      "collector": {
+        "state": "unknown",
+        "errorCode": "SENSOR_STATUS_UNSUPPORTED"
+      },
+      "tetragon": {
+        "reachable": true,
+        "version": "1.8.0",
+        "sensors": [],
+        "policies": [
+          {
+            "name": "hack-demo-observe",
+            "state": "enabled",
+            "error": null
+          },
+          {
+            "name": "hack-demo-network",
+            "state": "enabled",
+            "error": null
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-30T19:45:06.986829Z",
+      "collector": {
+        "state": "unknown",
+        "errorCode": "SENSOR_STATUS_UNSUPPORTED"
+      },
+      "tetragon": {
+        "reachable": true,
+        "version": "1.8.0",
+        "sensors": [],
+        "policies": [
+          {
+            "name": "hack-demo-network",
+            "state": "enabled",
+            "error": null
+          },
+          {
+            "name": "hack-demo-observe",
+            "state": "enabled",
+            "error": null
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-30T19:45:37.173057Z",
+      "collector": {
+        "state": "unknown",
+        "errorCode": "SENSOR_STATUS_UNSUPPORTED"
+      },
+      "tetragon": {
+        "reachable": true,
+        "version": "1.8.0",
+        "sensors": [],
+        "policies": [
+          {
+            "name": "hack-demo-observe",
+            "state": "enabled",
+            "error": null
+          },
+          {
+            "name": "hack-demo-network",
+            "state": "enabled",
+            "error": null
+          }
+        ]
+      }
+    }
+  ],
+  "readCount": 4909,
+  "parseErrors": 0,
+  "observedIntervals": [
+    31.932519,
+    30.186228
+  ],
+  "collectorExitCode": 0,
+  "stopped": {
+    "observedAt": "2026-10-30T19:45:37.197716Z",
+    "collector": {
+      "state": "error",
+      "errorCode": "COLLECTOR_STOPPED"
+    },
+    "tetragon": {
+      "reachable": null,
+      "version": null,
+      "sensors": [],
+      "policies": []
+    }
+  }
+}

@@ -1,0 +1,273 @@
+[
+  {
+    "stage": "policy-error",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 0,
+    "stdout": "STATUS_WRITTEN state=unknown errorCode=SENSOR_STATUS_UNSUPPORTED\n",
+    "stderr": ""
+  },
+  {
+    "stage": "policy-error-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:43:55.477190Z\",\"collector\":{\"state\":\"unknown\",\"errorCode\":\"SENSOR_STATUS_UNSUPPORTED\"},\"tetragon\":{\"reachable\":true,\"version\":\"1.8.0\",\"sensors\":[],\"policies\":[{\"name\":\"hack-demo-observe\",\"state\":\"enabled\",\"error\":null},{\"name\":\"hack-demo-network\",\"state\":\"enabled\",\"error\":null},{\"name\":\"hack-demo-status-error\",\"state\":\"error\",\"error\":\"POLICY_LOAD_ERROR\"}]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "policy-error-cleanup",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "tracingpolicy",
+      "delete",
+      "hack-demo-status-error"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-status-error\" deleted\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-disable",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "tracingpolicy",
+      "disable",
+      "hack-demo-network"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-network\" disabled\n",
+    "stderr": ""
+  },
+  {
+    "stage": "disabled",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 0,
+    "stdout": "STATUS_WRITTEN state=unknown errorCode=SENSOR_STATUS_UNSUPPORTED\n",
+    "stderr": ""
+  },
+  {
+    "stage": "disabled-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:43:56.465936Z\",\"collector\":{\"state\":\"unknown\",\"errorCode\":\"SENSOR_STATUS_UNSUPPORTED\"},\"tetragon\":{\"reachable\":true,\"version\":\"1.8.0\",\"sensors\":[],\"policies\":[{\"name\":\"hack-demo-observe\",\"state\":\"enabled\",\"error\":null},{\"name\":\"hack-demo-network\",\"state\":\"disabled\",\"error\":null}]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-disabled-connect",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network-probe"
+    ],
+    "exitCode": 0,
+    "stdout": "NETWORK_PROBE_START pid=91 time=2026-10-30T19:43:56.697999+00:00 destination=127.0.0.1:8080\nCONNECT_OK\n",
+    "stderr": ""
+  },
+  {
+    "stage": "network-enable",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "tetra",
+      "--server-address",
+      "unix:///var/run/tetragon/tetragon.sock",
+      "tracingpolicy",
+      "enable",
+      "hack-demo-network"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-network\" enabled\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enabled",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 0,
+    "stdout": "STATUS_WRITTEN state=unknown errorCode=SENSOR_STATUS_UNSUPPORTED\n",
+    "stderr": ""
+  },
+  {
+    "stage": "enabled-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:43:57.733792Z\",\"collector\":{\"state\":\"unknown\",\"errorCode\":\"SENSOR_STATUS_UNSUPPORTED\"},\"tetragon\":{\"reachable\":true,\"version\":\"1.8.0\",\"sensors\":[],\"policies\":[{\"name\":\"hack-demo-observe\",\"state\":\"enabled\",\"error\":null},{\"name\":\"hack-demo-network\",\"state\":\"enabled\",\"error\":null}]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "hide-owned-grpc-socket",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "sh",
+      "-ec",
+      "test ! -e /var/run/tetragon/tetragon.sock.screen-plan-check; mv /var/run/tetragon/tetragon.sock /var/run/tetragon/tetragon.sock.screen-plan-check"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "stage": "unreachable",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 1,
+    "stdout": "STATUS_WRITTEN state=error errorCode=TETRAGON_UNREACHABLE\n",
+    "stderr": ""
+  },
+  {
+    "stage": "unreachable-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:43:58.049492Z\",\"collector\":{\"state\":\"error\",\"errorCode\":\"TETRAGON_UNREACHABLE\"},\"tetragon\":{\"reachable\":false,\"version\":null,\"sensors\":[],\"policies\":[]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "restore-owned-grpc-socket",
+    "command": [
+      "docker",
+      "exec",
+      "hack-tetragon",
+      "mv",
+      "/var/run/tetragon/tetragon.sock.screen-plan-check",
+      "/var/run/tetragon/tetragon.sock"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "stage": "stop-owned-sensor",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "stop"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-observe\" deleted\ntracing policy \"hack-demo-network\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\nhack-tetragon\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-stopped",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 1,
+    "stdout": "STATUS_WRITTEN state=error errorCode=TETRAGON_STOPPED\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-stopped-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:43:59.087718Z\",\"collector\":{\"state\":\"error\",\"errorCode\":\"TETRAGON_STOPPED\"},\"tetragon\":{\"reachable\":false,\"version\":null,\"sensors\":[],\"policies\":[]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "http-health-while-sensor-stopped",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "restart-owned-sensor",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "start"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "no-policies",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/sensor_status.py",
+      "--once"
+    ],
+    "exitCode": 0,
+    "stdout": "STATUS_WRITTEN state=unknown errorCode=SENSOR_STATUS_UNSUPPORTED\n",
+    "stderr": ""
+  },
+  {
+    "stage": "no-policies-file",
+    "command": [
+      "cat",
+      "/home/junje.guest/2026-hack-runtime/tetragon/status.json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"observedAt\":\"2026-10-30T19:44:01.547780Z\",\"collector\":{\"state\":\"unknown\",\"errorCode\":\"SENSOR_STATUS_UNSUPPORTED\"},\"tetragon\":{\"reachable\":true,\"version\":\"1.8.0\",\"sensors\":[],\"policies\":[]}}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "restore-observe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "observe"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/observe.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=observe mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "restore-network",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "network"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\ntracing policy \"/policies/network.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n3    hack-demo-network   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=network mnt=4026532395\n",
+    "stderr": ""
+  }
+]
