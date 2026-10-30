@@ -55,7 +55,8 @@ def network(filters: Annotated[QueryFilters, Query()]):
                   SELECT instance_id, normalized#>>'{{process,execId}}' AS exec_id,
                          normalized->'network' AS network, count(*) AS count,
                          host(coalesce(normalized#>>'{{network,destinationIp}}',
-                                       normalized#>>'{{network,sourceIp}}')::inet) AS target_ip
+                                       normalized#>>'{{network,sourceIp}}')::inet) AS target_ip,
+                         count(*) FILTER (WHERE normalized->>'status' = 'attention') AS attention_count
                   FROM events WHERE {where} AND normalized->>'eventType' = 'NETWORK'
                   GROUP BY 1, 2, 3, 5
                 ), limited AS (
@@ -66,13 +67,28 @@ def network(filters: Annotated[QueryFilters, Query()]):
                   coalesce((SELECT sum(count) FROM grouped
                             WHERE target_ip IS NULL OR NOT (target_ip = ANY(%(mapped_ips)s::text[]))), 0)::bigint AS unmapped,
                   (SELECT count(*) > 200 FROM grouped) AS truncated,
+                  coalesce((SELECT jsonb_agg(t) FROM (
+                    SELECT target_ip, sum(count)::bigint AS count,
+                           sum(attention_count)::bigint AS attention
+                    FROM grouped WHERE target_ip = ANY(%(mapped_ips)s::text[]) GROUP BY target_ip
+                  ) t), '[]'::jsonb) AS located_totals,
                   coalesce((SELECT jsonb_agg(jsonb_build_object(
                     'instanceId', instance_id, 'execId', exec_id, 'network', network,
-                    'count', count, 'targetIp', target_ip)
+                    'count', count, 'attentionCount', attention_count, 'targetIp', target_ip)
                     ORDER BY count DESC, instance_id COLLATE "C", exec_id COLLATE "C" NULLS FIRST,
                       network::text COLLATE "C" NULLS FIRST) FROM limited), '[]'::jsonb) AS items""",
             params,
         ).fetchone()
+    countries = {}
+    unknown_country = 0
+    for target in data["located_totals"]:
+        code = config.ips[target["target_ip"]].countryCode
+        if not code:
+            unknown_country += target["count"]
+            continue
+        country = countries.setdefault(code, {"countryCode": code, "count": 0, "attentionCount": 0})
+        country["count"] += target["count"]
+        country["attentionCount"] += target["attention"]
     for item in data["items"]:
         value = item["network"]
         item["network"] = {key: value.get(key) for key in NETWORK_FIELDS} if isinstance(value, dict) else None
@@ -83,6 +99,7 @@ def network(filters: Annotated[QueryFilters, Query()]):
     return {
         "generatedAt": utc_text(datetime.now(UTC)), "totalNetworkEvents": data["total"],
         "items": data["items"], "unmappedCount": data["unmapped"],
+        "countries": list(countries.values()), "unknownCountryCount": unknown_country,
         "truncated": data["truncated"], "limit": 200,
     }
 

@@ -8,6 +8,7 @@ export const eventTypes = [
 export type EventType = (typeof eventTypes)[number];
 export type Source = 'live' | 'sample';
 export type Status = 'observed' | 'attention';
+export const statusLabels: Record<Status, string> = { observed: '안전', attention: '위험' };
 export type Filters = {
   from: string;
   to: string;
@@ -136,12 +137,15 @@ export type NetworkItem = {
   execId: string | null;
   network: Network | null;
   count: number;
+  attentionCount: number;
   location: Location | null;
   serverLocation: Location | null;
 };
 export type NetworkResponse = {
   generatedAt: string;
   totalNetworkEvents: number;
+  countries?: { countryCode: string; count: number; attentionCount: number }[];
+  unknownCountryCount?: number;
   items: NetworkItem[];
   unmappedCount: number;
   truncated: boolean;

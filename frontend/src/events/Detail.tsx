@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../api';
-import { dateTime, type Event } from '../types';
+import { dateTime, statusLabels, type Event } from '../types';
 export function Detail({ id, onClose }: { id: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [data, setData] = useState<{ event: Event; rawEvent: object }>();
@@ -51,6 +51,8 @@ export function Detail({ id, onClose }: { id: string; onClose: () => void }) {
             <dd>{dateTime(data.event.receivedAt)}</dd>
             <dt>발생</dt>
             <dd>{dateTime(data.event.occurredAt)}</dd>
+            <dt>이벤트 상태</dt>
+            <dd><span className={`badge ${data.event.status}`}>{statusLabels[data.event.status]}</span></dd>
             <dt>경고 근거</dt>
             <dd>{data.event.reason || '없음'}</dd>
             <dt>정책 / 보고된 동작</dt>

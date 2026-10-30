@@ -1,8 +1,9 @@
 import { api } from '../api';
 import { Charts } from '../events/Charts';
 import { EventTable } from '../events/EventTable';
+import { describeEvent } from '../events/describeEvent';
 import type { useDashboard } from '../events/useDashboard';
-import { dateTime, number, typeLabels, type Selection } from '../types';
+import { dateTime, number, statusLabels, typeLabels, type PeriodFilters, type Selection } from '../types';
 import {
   ResourceStatus,
   Scope,
@@ -31,11 +32,45 @@ function LiveStatus({ live }: Pick<Props, 'live'>) {
     />
   );
 }
+const fetchRiskEvents = (filters: PeriodFilters, signal: AbortSignal) =>
+  api.events({ ...filters, status: 'attention' }, 1, signal);
+
 export function Overview(props: Props) {
   const network = usePeriodResource(api.network, props.selection, props.refresh);
   const { data } = props.live;
+  const risks = usePeriodResource(fetchRiskEvents, props.selection, props.refresh, !!data?.dashboard.attention);
+  const sameRiskScope = !!data?.dashboard.attention && data && risks.data &&
+    (['instanceId', 'source', 'eventType', 'status', 'processExecId', 'policyName'] as const)
+      .every((key) => risks.data!.filters[key] === data.filters[key]) &&
+    (props.selection.period !== 'custom' ||
+      (risks.data.filters.from === data.filters.from && risks.data.filters.to === data.filters.to));
+  const riskCount = sameRiskScope ? risks.data!.value.total : data?.dashboard.attention || 0;
   return (
     <>
+      <LiveStatus live={props.live} />
+      {data && (
+        <section className={`risk-summary ${riskCount ? 'has-risk' : data.dashboard.total ? 'has-safe' : ''}`} aria-label="이벤트 안전·위험 요약">
+          <div className="attention-summary">
+            <div><span className="dot" /><strong>{riskCount ? `위험 ${number(riskCount)}건` : data.dashboard.total ? `안전 ${number(data.dashboard.total)}건` : '관찰 이벤트 없음'}</strong></div>
+            {riskCount > 0 && <button disabled={props.live.loading || !!props.live.error} onClick={() => props.onSelection({ ...props.selection, status: props.selection.status === 'attention' ? undefined : 'attention' })}>
+              {props.selection.status === 'attention' ? '전체 이벤트 보기' : '위험만 보기'} →
+            </button>}
+          </div>
+          {riskCount > 0 && <>
+            <ResourceStatus resource={risks} label="위험 이벤트" />
+            {sameRiskScope ? <div className="risk-events">
+              {risks.data!.value.items.slice(0, 4).map((event) => (
+                <button className="risk-event" key={event.eventId} onClick={() => props.onDetail(event.eventId)}>
+                  <time title={dateTime(event.receivedAt)}>{new Date(event.receivedAt).toLocaleTimeString('ko-KR', { hour12: false })}</time>
+                  <span>{event.instanceId}</span>
+                  <span>{describeEvent(event)}</span>
+                  <span className="badge attention">상세 보기 →</span>
+                </button>
+              ))}
+            </div> : !!risks.data && !risks.error && <p role="status" className="empty">현재 범위의 위험 이벤트 불러오는 중…</p>}
+          </>}
+        </section>
+      )}
       <ResourceStatus resource={network} label="네트워크" />
       {network.data && (
         <>
@@ -48,24 +83,12 @@ export function Overview(props: Props) {
           />
         </>
       )}
-      <LiveStatus live={props.live} />
       {data && (
         <>
-          <div className={`attention-summary ${data.dashboard.attention ? 'has-matches' : ''}`}>
-            <div>
-              <span className="dot" />
-              <strong>{data.dashboard.attention ? `주의 ${number(data.dashboard.attention)}건` : data.dashboard.total ? '주의 없음' : '관찰 이벤트 없음'}</strong>
-            </div>
-            {data.dashboard.attention > 0 && (
-              <button disabled={props.live.loading || !!props.live.error} onClick={() => props.onSelection({ ...props.selection, status: props.selection.status === 'attention' ? undefined : 'attention' })}>
-                {props.selection.status === 'attention' ? '전체 이벤트 보기' : '주의만 보기'} →
-              </button>
-            )}
-          </div>
-          <p className="policy-explanation">주의란? 이벤트의 정책명이 등록된 경고 정책명과 일치한다는 뜻입니다. 공격 확정이나 차단 성공을 뜻하지 않습니다.</p>
           <Stats items={[
             { label: '관찰 이벤트', value: data.dashboard.total },
-            { label: '주의', value: data.dashboard.attention, tone: data.dashboard.attention ? 'warning' : '' },
+            { label: '안전', value: data.dashboard.total - data.dashboard.attention, tone: 'safe' },
+            { label: '위험', value: data.dashboard.attention, tone: data.dashboard.attention ? 'warning' : '' },
             { label: '네트워크 이벤트', value: network.data?.value.totalNetworkEvents ?? '—' },
           ]} />
         </>
@@ -82,7 +105,7 @@ export function Overview(props: Props) {
                   aria-pressed={data.filters.status === 'attention'}
                   disabled={props.live.loading}
                   onClick={() => props.onSelection({ ...props.selection, status: props.selection.status === 'attention' ? undefined : 'attention' })}
-                >주의만</button>
+                >위험만</button>
               </div>
             </div>
             <div className="table-scroll">
@@ -96,7 +119,7 @@ export function Overview(props: Props) {
                       <td>{typeLabels[event.eventType]}</td>
                       <td>{event.policyName || '—'}</td>
                       <td><span className={`badge ${event.source}`}>{event.source}</span></td>
-                      <td className={event.status === 'attention' ? 'pink-text' : ''}>{event.status === 'attention' ? '주의' : '관찰'}</td>
+                      <td><span className={`badge ${event.status}`}>{statusLabels[event.status]}</span></td>
                       <td><button aria-label={`${event.instanceId} ${typeLabels[event.eventType]} 이벤트 상세`} onClick={() => props.onDetail(event.eventId)}>보기</button></td>
                     </tr>
                   ))}
@@ -156,7 +179,7 @@ export function ServersScreen(props: Props) {
           <Stats
             items={[
               {
-                label: '주의',
+                label: '위험',
                 value: data.dashboard.attention,
                 tone: 'warning',
               },

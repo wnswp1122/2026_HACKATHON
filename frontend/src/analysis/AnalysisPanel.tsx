@@ -237,7 +237,7 @@ export default function AnalysisPanel({
       {snapshot && (
         <div className="analysis-snapshot">
           <div className="panel-heading"><h3>분석 데이터</h3><span>{dateTime(snapshot.createdAt)}</span></div>
-          <div className="snapshot-summary"><span>관찰 이벤트 <b>{snapshot.dashboard.total}건</b></span><span>주의 <b>{snapshot.dashboard.attention}건</b></span></div>
+          <div className="snapshot-summary"><span>관찰 이벤트 <b>{snapshot.dashboard.total}건</b></span><span>위험 <b>{snapshot.dashboard.attention}건</b></span></div>
           <div className="snapshot-toolbar">
             {pngUrl && <a className="button" href={pngUrl} download={`snapshot-${snapshot.snapshotId}.png`}>캡처 다운로드</a>}
             {!analysis && <button disabled={busy} onClick={() => void run(snapshot)}>같은 데이터로 다시 분석</button>}

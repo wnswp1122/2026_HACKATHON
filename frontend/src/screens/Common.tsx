@@ -13,6 +13,7 @@ import {
   dateTime,
   number,
   sourceLabel,
+  statusLabels,
   typeLabels,
   type Dashboard,
   type PeriodFilters,
@@ -57,7 +58,7 @@ export function Scope({ filters, compact = false }: { filters: PeriodFilters; co
     <div className="scope-chips" aria-label="표시 중인 데이터 범위">
       {!compact && <span className={`status-chip ${filters.source === 'sample' ? 'caution' : ''}`}>{sourceLabel(filters.source)}</span>}
       {filters.instanceId && <span className="status-chip">{filters.instanceId}</span>}
-      {filters.status && <span className="status-chip">{filters.status === 'attention' ? '주의' : '관찰됨'}</span>}
+      {filters.status && <span className={`status-chip status-${filters.status}`}>{statusLabels[filters.status]}</span>}
       {filters.eventType && <span className="status-chip">{typeLabels[filters.eventType]}</span>}
       {filters.policyName && <span className="status-chip">{filters.policyName}</span>}
       {filters.processExecId && <span className="status-chip" title={filters.processExecId}>프로세스 필터 적용</span>}
@@ -97,7 +98,7 @@ export function Timeline({
   return (
     <article className="panel timeline-panel">
       <div className="panel-heading">
-        <h3>{explain ? '시간별 수집 이벤트 수' : '이벤트 · 주의 추이'}</h3>
+        <h3>{explain ? '시간별 수집 이벤트 수' : '이벤트 · 위험 추이'}</h3>
         <span>
           {dashboard.bucketSeconds / 60}분당 건수
         </span>
@@ -105,16 +106,16 @@ export function Timeline({
       {explain && (
         <p className="timeline-explanation">
           서버에서 보낸 프로세스 실행·파일 접근·네트워크 등 관찰 기록을 수신 시각으로 집계합니다.
-          주의는 전체 중 경고 정책에 해당하는 기록이며, 공격 횟수는 아닙니다.
+          위험은 전체 중 경고 정책에 해당하는 기록이며, 공격 횟수는 아닙니다.
         </p>
       )}
       <div className="legend">
-        <i className="dot blue" /> 전체 <i className="dot amber" /> 주의
+        <i className="dot status-observed" /> 안전 <i className="dot status-attention" /> 위험
       </div>
       {explain && <p className="timeline-axis-caption">수신 시각 · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>}
       <div className="chart">
         <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={dashboard.timeline} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
+          <AreaChart data={dashboard.timeline.map((row) => ({ ...row, safe: row.count - row.attention }))} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
             <CartesianGrid stroke="#242a33" vertical={false} />
             <XAxis
               dataKey="bucketStart"
@@ -132,17 +133,19 @@ export function Timeline({
             <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <Tooltip labelFormatter={(v) => dateTime(String(v))} />
             <Area
-              name="수집 이벤트"
-              dataKey="count"
-              stroke="#22d3ee"
-              fill="#12353e"
+              name="안전"
+              dataKey="safe"
+              stackId="status"
+              stroke="var(--status-safe)"
+              fill="var(--status-safe-fill)"
               isAnimationActive={false}
             />
             <Area
-              name="주의 (전체에 포함)"
+              name="위험"
               dataKey="attention"
-              stroke="#ff3b5c"
-              fill="#3c1923"
+              stackId="status"
+              stroke="var(--status-danger)"
+              fill="var(--status-danger-fill)"
               isAnimationActive={false}
             />
           </AreaChart>
@@ -170,7 +173,7 @@ export function ServerTable({
             <tr>
               <th>서버</th>
               <th>관찰 이벤트</th>
-              <th>주의</th>
+              <th>위험</th>
               <th>최근 수신 · 전체 출처</th>
               {onSelect && <th>필터</th>}
             </tr>
@@ -200,21 +203,22 @@ export function ServerBars({ items }: { items: ServerSummary[] }) {
   return (
     <article className="panel server-bars">
       <div className="panel-heading">
-        <h3>서버별 관찰 이벤트 수</h3>
+        <h3>서버별 안전·위험 이벤트</h3>
 
       </div>
       {items.length ? (
         <ResponsiveContainer width="100%" height={Math.max(220, items.length * 38)}>
-          <BarChart data={items} layout="vertical" margin={{ left: 0, right: 15 }}>
+          <BarChart data={items.map((item) => ({ ...item, safe: item.total - item.attention }))} layout="vertical" margin={{ left: 0, right: 15 }}>
             <CartesianGrid stroke="#242a33" horizontal={false} />
             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <YAxis dataKey="instanceId" type="category" width={130} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <Tooltip />
-            <Bar dataKey="total" name="관찰 이벤트" fill="#22d3ee" isAnimationActive={false} />
+            <Bar dataKey="safe" name="안전" stackId="status" fill="var(--status-safe)" isAnimationActive={false} />
             <Bar
               dataKey="attention"
-              name="주의 (전체에 포함)"
-              fill="#ff3b5c"
+              stackId="status"
+              name="위험"
+              fill="var(--status-danger)"
               isAnimationActive={false}
             />
           </BarChart>

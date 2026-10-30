@@ -24,7 +24,7 @@ export function Metrics({ data }: { data: Dashboard }) {
         <p>선택한 필터의 전체 범위</p>
       </article>
       <article className="metric warning">
-        <span>주의</span>
+        <span>위험</span>
         <strong>
           {number(data.attention)}
           <small>건</small>
@@ -55,7 +55,7 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
     <AreaChart
       width={fixed ? 650 : undefined}
       height={fixed ? 220 : undefined}
-      data={data.timeline}
+      data={data.timeline.map((row) => ({ ...row, safe: row.count - row.attention }))}
       margin={{ top: 12, right: 16, bottom: 0, left: -15 }}
     >
       <CartesianGrid vertical={false} stroke="#242a33" />
@@ -76,18 +76,20 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
         <Tooltip labelFormatter={(value) => new Date(String(value)).toLocaleString('ko-KR')} />
       )}
       <Area
-        name="전체 이벤트"
-        dataKey="count"
-        stroke="#22d3ee"
-        fill="#12353e"
+        name="안전"
+        dataKey="safe"
+        stackId="status"
+        stroke="var(--status-safe)"
+        fill="var(--status-safe-fill)"
         strokeWidth={2}
         isAnimationActive={false}
       />
       <Area
-        name="주의"
+        name="위험"
         dataKey="attention"
-        stroke="#ff3b5c"
-        fill="#3c1923"
+        stackId="status"
+        stroke="var(--status-danger)"
+        fill="var(--status-danger-fill)"
         strokeWidth={2}
         isAnimationActive={false}
       />
@@ -126,7 +128,7 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
           <span>{data.bucketSeconds / 60}분 단위</span>
         </div>
         <div className="legend">
-          <i className="dot blue" /> 전체 이벤트 <i className="dot amber" /> 주의
+          <i className="dot status-observed" /> 안전 <i className="dot status-attention" /> 위험
         </div>
         <div className="chart">
           {fixed ? (
