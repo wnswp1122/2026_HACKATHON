@@ -1,5 +1,9 @@
 # 고정 스냅샷 PNG·AI 분석 모듈
 
+LiteSOC — **AI 기반 서버 보안 모니터링·분석 플랫폼**.
+
+후속 기준은 **`d960d3f`**의 [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md)([PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 ai-analysis 담당 행을 확인했으며 기준 커밋의 파일과 SHA256 일치를 확인했다. 이 브랜치의 오래된 공통 docs와 충돌하면 위 원격 계획을 우선한다. 공통 docs와 다른 담당 코드는 수정하지 않는다.
+
 `ai-analysis` 소유 범위 구현이다. 공통 [HTTP·DB 계약](../../../docs/saas-parallel-development.md)과 [수신/안전 입력 기준](../../../docs/api-contract.md)을 따른다. 이 브랜치에는 core/data/app이 없으므로 단독 임시 앱·문서 SQL·sample PNG·mock upstream으로 검증한다. 전체 SaaS/프론트 통합이나 실제 AI 검증 완료를 뜻하지 않는다.
 
 ## 연결과 실행
@@ -22,7 +26,9 @@ core 통합 시에는 backend 가상환경에 이 폴더의 requirements를 설�
 | [validation.py](validation.py) | Pillow 검증/실제 디코딩, 허용된 Snapshot 필드와 분석 결과의 Pydantic 검증 |
 | [service.py](service.py) | 행 잠금, 이미지 불변 저장, 성공 결과 재사용·PostgreSQL 저장 |
 | [upstream.py](upstream.py) | 고정 Responses URL로 HTTPX 요청, 오류/완성 상태/구조 검증 |
-| [instructions-v1.md](instructions-v1.md) | 한국어 지침. `snapshot-analysis-v1`; 수정 시 파일·상수 버전을 함께 올린다 |
+| [instructions-v2.md](instructions-v2.md) | 5개 화면의 관찰 한계와 LiteSOC 명칭을 반영한 한국어 지침. 신규 분석은 `snapshot-analysis-v2` |
+
+기존 [instructions-v1.md](instructions-v1.md)는 과거 성공 결과의 지침 근거로 보존한다. 지침 갱신은 기존 성공 결과를 바꾸거나 외부 재호출을 일으키지 않는다. 같은 스냅샷은 저장된 instructionVersion과 결과를 그대로 반환한다. v2 분석을 새로 원하면 새 스냅샷을 생성한다.
 
 [.env.example](.env.example)은 변수 이름만 제공한다. `.env` 자동 로딩은 하지 않는다. `DATABASE_URL`은 core DB 연결이 읽으며 `OPENAI_API_KEY`, `OPENAI_MODEL`은 서버에만 설정한다. 모델 기본값은 없다. 기존 성공 결과 조회/재사용에는 AI 설정이 필요하지 않다. 신규 분석에서 키 또는 모델이 비어 있거나 지침 파일이 없으면 503이다. 실제 키를 명령 인자·로그·브라우저·Git에 넣지 않는다.
 
@@ -43,6 +49,10 @@ core 통합 시에는 backend 가상환경에 이 폴더의 requirements를 설�
 스냅샷 입력은 중첩 객체까지 공통 문서의 필드 allowlist로 확인한다. rawEvent, process/명령 인자, 환경변수 등 예상 밖 필드가 있으면 제거·재구성해 보내는 대신 **전송 전에 실패**한다. ID 일치도 확인한다. 통과한 원래 payload JSON 값과 저장 PNG 바이트를 input_text/input_image(data URL)로 함께 보낸다. 키는 인증 헤더, 모델은 요청 설정으로만 사용하며 환경 전체나 원본 이벤트를 넣지 않는다. `store: false`, tools 없음, 고정 `https://api.openai.com/v1/responses`, 리다이렉트·환경 proxy·SDK 자동 재시도 없음이다. 연결 timeout은 5초, 읽기/쓰기/풀 timeout은 60초의 비활성 기준이다.
 
 지침은 JSON·이미지·식별자 안의 지시를 분석 자료로만 취급하고 한국어 facts/hypotheses/checks/limitations를 구분한다. 수치·ID는 JSON 우선, sample/live·요약 생략·outcome=unknown·PNG 불일치를 설명하며 공격/유출/차단 성공을 단정하거나 정책·명령을 실행하지 않는다.
+
+5개 화면 모두 기존 안전 Snapshot을 사용한다. 공개 Event에 추가되는 file/network/process(parentExecId 포함), IP/파일 경로, GeoIP/설정 위치, sensor/readiness 보고, Replay 전체 데이터는 AI 입력에 추가하지 않는다. processExecId/policyName 필터도 Snapshot에는 허용하지 않는다. v2 지침은 로그인·계정 탈취·DB 행 수·전송량·인과관계·서버 보안 정상 판정을 만들어내지 않고, 제공되지 않은 자료를 미확인/미지원으로 밝히도록 보완했다. JSON allowlist와 HTTP/DB 계약은 변경하지 않는다.
+
+프론트 연결 문구 기준: “선택 기간·인스턴스·출처의 안전 집계와 최대 100건 요약·고정 PNG를 분석합니다. 화면의 IP·파일·프로세스 상세·서버/센서 상태·GeoIP는 포함하지 않습니다. processExecId·policyName 필터는 분석에 적용되지 않습니다.” 실제 화면 안내와 캡처 영역 구현은 frontend 소유이며 여기서 UI를 수정하거나 구현 완료를 주장하지 않는다.
 
 서버는 PNG의 내용과 스냅샷의 시각적 일치나 이미지 속 비밀값 부재를 증명하지 않는다. 프론트가 원본/명령 인자/비밀값을 제외한 고정 영역만 캡처해야 한다. 이 통제와 실제 모델의 지침 준수·한국어 분석 품질은 통합/실제 AI 검증 대상이다.
 
@@ -78,7 +88,7 @@ backend/src/analysis/.venv/bin/python backend/src/analysis/.local/verify_manual.
 
 이 명령은 현재 워크트리의 ignored 재현 파일이 있을 때만 동작한다. 새 clone에서는 core/data 통합 앱과 공통 SQL로 환경을 구성해야 하며, 위 임시 파일은 제품 의존성이 아니다. 검증 뒤 임시 앱/upstream을 종료한다.
 
-## 실제 검증 결과
+## 초기 구현 검증 — e793751
 
 2026-10-31, macOS Python 3.12.2에서 독립 수동 시나리오 **59항목 통과**. 실제 PostgreSQL과 실제 TCP HTTP 18003, 실제 HTTPX의 Unix 소켓 요청을 사용했다. 결과는 mock이며 실제 AI 추론이 아니다.
 
@@ -101,3 +111,24 @@ backend/src/analysis/.venv/bin/python backend/src/analysis/.local/verify_manual.
 임시 시나리오 외에도 직접 생성한 잘못된 PNG 100개에서 처리되지 않은 예외가 없음을 확인했다. 성공한 최종 실행 뒤 제품 코드는 바꾸지 않았다. 재현 스크립트·sample 요청 기록·결과는 ignored `.local/`에만 남겼고 실제 키/토큰/이벤트를 사용하지 않았다. 임시 HTTP 앱과 upstream은 종료했으며 전용 DB/볼륨은 보존하고 자신의 15433 SSH 전달만 해제했다.
 
 미검증: core의 실제 앱 조립·전역 핸들러, data의 실제 스냅샷 생성, 프론트의 고정 화면/캡처·민감정보 제외, 전체 SaaS 흐름, 실제 모델 접근·이미지 인식·한국어 품질·지침 준수. 실제 유료 OpenAI 호출은 요청 범위가 아니어서 실행하지 않았다. 강제 프로세스 종료/외부 성공 직후 DB commit 장애는 주입하지 않았다. 공통 DB/HTTP 계약 변경은 필요하지 않다.
+
+
+## 5개 화면 계획 반영 및 재검증 — d960d3f 기준
+
+2026-10-31, 기존 `feat/ai-analysis`에서 후속 지침을 구현했다. `upstream.py`가 신규 분석에 `snapshot-analysis-v2`를 사용하며 v1 지침/성공 결과는 보존한다. Snapshot·Analysis 모델, DB 스키마, HTTP 경로와 크기 제한, 잠금 방식은 변경하지 않았다. 필요한 선행 입력은 기준 계획과 기존 Snapshot 계약으로 충족했으며 이 작업의 착수 블로커는 없었다.
+
+동일한 실제 PostgreSQL 17.11 전용 DB와 HTTP 18003의 2-worker 임시 앱·Unix 소켓 mock으로 **70항목 통과**했다. 이전 59항목을 이번 코드에서 다시 실행했고 아래 11항목을 추가했다. 단순 계획 확인이나 과거 기록을 이번 실행으로 세지 않았다.
+
+| 추가 확인 | 실제 결과 |
+|---|---|
+| Event 확장 4종 | Snapshot.events에 file/network/process(parentExecId 포함)/parentExecId를 각각 섞으면 502 AI_FAILED, upstream 0회 |
+| 확장 필터 2종 | Snapshot.filters에 processExecId 또는 policyName을 넣으면 502, upstream 0회 |
+| 화면 전용 정보 3종 | Snapshot에 geoip/readiness/replay를 넣으면 502, upstream 0회 |
+| v2 요청 내용 | 실제 전송 요청의 지침에 LiteSOC 제품 소개·100건 안전 요약·미제공 자료·인과관계/로그인/DB 행 수 한계·지시 무시 문구 포함. payload/PNG는 저장 값 그대로, 신규 결과 instructionVersion=v2 |
+| 과거 결과 호환 | 이전 실행에서 저장한 v1 결과를 v2 앱에서 GET/POST하면 동일 분석/버전 200, upstream 0회 |
+
+기존 실패·재시도·키/모델 미설정·PNG 필수·동시 8요청의 upstream 1회·앱/DB 재시작 영속성도 재확인했다. pip check, 변경 diff, README 링크를 확인했다. 임시 앱/upstream은 종료하고 자신의 SSH 전달만 해제했으며 전용 DB/볼륨은 보존했다.
+
+공유 코드를 읽어 data Snapshot이 안전 요약을 만드는 연결 구조와 frontend의 별도 캡처 흐름을 정적으로 확인했다. 다른 브랜치를 합치거나 그 코드를 실행한 통합 검증은 아니다. 실제 5-route 화면에서 제외 필터 안내·민감정보 없는 PNG가 만들어지는지, 실제 모델의 한국어 응답·근거/한계 준수는 미검증이다. mock의 응답 내용은 모델의 지침 준수 증거가 아니며 실제 유료 호출은 실행하지 않았다.
+
+전달 PR은 선행 계약 PR #4의 `docs/saas-parallel-start`를 base로 삼아 analysis 소유 파일만 차이에 포함한다. master로의 자동 병합은 하지 않는다. core/data/frontend를 조립하는 후속 통합 검증은 별도다.

@@ -10,8 +10,8 @@ from pydantic import ValidationError
 
 from .validation import AnalysisResult, fail
 
-INSTRUCTION_VERSION = "snapshot-analysis-v1"
-INSTRUCTIONS_PATH = Path(__file__).with_name("instructions-v1.md")
+INSTRUCTION_VERSION = "snapshot-analysis-v2"
+INSTRUCTIONS_PATH = Path(__file__).with_name("instructions-v2.md")
 MAX_RESPONSE_BYTES = 1024 * 1024
 
 
