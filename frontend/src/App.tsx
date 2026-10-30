@@ -104,7 +104,7 @@ export default function App() {
           <div className="page-heading">
             <div>
               <h1>보안 개요</h1>
-              <p>Tetragon에서 관찰된 런타임 이벤트 · 수신 시각 기준</p>
+              <p>AI 기반 서버 보안 모니터링·분석 플랫폼</p>
             </div>
             <button disabled={loading} onClick={() => setRefresh((x) => x + 1)}>
               ↻ 지금 새로고침
@@ -196,7 +196,7 @@ export default function App() {
           <Suspense fallback={<p>분석 화면 준비 중…</p>}>
             <AnalysisPanel selection={selection} onBusy={setBusy} onResult={setBriefing} />
           </Suspense>
-          <footer>수신 시각 기준 집계 · LiteSOC · Tetragon 기반 로컬 관찰 MVP</footer>
+          <footer>LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
         </main>
       </div>
       {detailId && <Detail id={detailId} onClose={() => setDetailId('')} />}

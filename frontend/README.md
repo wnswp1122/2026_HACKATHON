@@ -1,6 +1,6 @@
 # LiteSOC 보안 대시보드
 
-React·TypeScript·Vite 기반 로컬 MVP 프론트다. 조회·스냅샷·이미지·AI의 연결 기준은 [SaaS HTTP 계약 v1](../docs/saas-parallel-development.md)이다. `frontend/`만 구현했으며 실제 SaaS 모듈 전체 통합과 실제 모델 분석 완료를 뜻하지 않는다.
+LiteSOC는 **AI 기반 서버 보안 모니터링·분석 플랫폼**이다. 이 디렉터리는 React·TypeScript·Vite 기반 로컬 MVP 프론트다. 조회·스냅샷·이미지·AI의 연결 기준은 [SaaS HTTP 계약 v1](../docs/saas-parallel-development.md)이다. `frontend/`만 구현했으며 실제 SaaS 모듈 전체 통합과 실제 모델 분석 완료를 뜻하지 않는다.
 
 ## 설치와 실행
 
