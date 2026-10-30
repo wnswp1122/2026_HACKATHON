@@ -15,7 +15,7 @@ type Props = {
 };
 
 export function NetworkGlobe({ data, status, disabled, onStatusChange }: Props) {
-  const [center, setCenter] = useState<[number, number]>([20, 0]);
+  const [center, setCenter] = useState<[number, number]>([30, 105]);
   const countries = new Map<string, number>();
   const countryRisks = new Map<string, number>();
   const unmapped = new Map<string, { count: number; risk: number }>();
@@ -81,6 +81,7 @@ export function NetworkGlobe({ data, status, disabled, onStatusChange }: Props) 
               </ul>
             </details>
           </div>
+          <p className="hint">선 밀도는 경로별 관찰 건수에 비례합니다(로그 축척·최대 24개). 선 하나가 요청 한 건을 뜻하지는 않습니다.</p>
         </div>
         <section className="country-distribution" aria-labelledby="country-distribution-title">
           <div className="panel-heading">
