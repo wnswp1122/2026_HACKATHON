@@ -76,7 +76,7 @@ export function ReplayScreen({
   const duration = Math.max(0, end - start);
   const zoom = zoomLevels[zoomIndex];
   const { ticks, tickStep } = useMemo(() => {
-    if (!duration) return { ticks: [start], tickStep: 1000 };
+    if (!duration) return { ticks: replay?.events.length ? [start] : [], tickStep: 1000 };
     const visibleStep = duration / Math.max(1, (timelineViewportWidth * zoom) / 120);
     const step = timeSteps.find((value) => value >= visibleStep) || timeSteps.at(-1)!;
     const result: number[] = [];
@@ -85,7 +85,7 @@ export function ReplayScreen({
     for (let t = first; t <= end && result.length < 750; t += step) result.push(t);
     if (!result.length) result.push(start);
     return { ticks: result, tickStep: step };
-  }, [start, end, duration, zoom, timelineViewportWidth]);
+  }, [start, end, duration, zoom, timelineViewportWidth, replay?.events.length]);
   useEffect(() => {
     const scroller = timelineScrollRef.current;
     if (!scroller) return;
