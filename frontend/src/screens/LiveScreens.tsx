@@ -221,6 +221,8 @@ export function ServersScreen(props: Props) {
         </div>
         <div className="stack">
           {data && <Charts data={data.dashboard} />}
+        </div>
+        <div className="stack server-relationships">
           <ResourceStatus resource={graph} label="프로세스·통신 관계" />
           {graph.data && (
             <>

@@ -1221,6 +1221,9 @@ main,
 .server-dashboard-grid .charts {
   grid-template-columns: 1fr 1fr;
 }
+.server-dashboard-grid .server-relationships {
+  grid-column: 1 / -1;
+}
 .server-dashboard-grid .distribution {
   flex-direction: column;
   gap: 0;
