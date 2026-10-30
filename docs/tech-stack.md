@@ -11,9 +11,9 @@
 | SaaS 저장 | PostgreSQL. 원본·정규화·스냅샷·분석 결과 |
 | 프론트 | React + TypeScript + Vite + Recharts, 2초 폴링 |
 | 캡처 | html-to-image, 고정된 스냅샷 화면 |
-| AI | OpenAI Responses API, JSON 요약과 이미지 입력, 구조화 응답 |
+| AI | Gemini generateContent API, JSON 요약과 이미지 입력, 구조화 응답 |
 
-AI 모델은 앞선 계획의 gpt-5.4-mini를 시작 제안으로 둔다. 실제 계정 접근·비용·이미지/구조화 응답을 SaaS 담당이 검증하고 설정한다. 기존 gpt-5-mini 고정 지침은 사용하지 않는다. [모델 문서](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+AI 모델은 서버의 `GEMINI_MODEL`로 명시한다. 설정 예시는 이미지 입력·구조화 출력을 지원하는 `gemini-2.5-flash`이며, 실제 계정 접근·무료 한도·분석 품질은 운영할 프로젝트에서 확인한다. [구조화 출력](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [요금·무료 한도 안내](https://ai.google.dev/gemini-api/docs/pricing)
 
 전송/게시판 개발환경은 SaaS 코드나 Node 환경에 의존시키지 않는다. Tetragon 버전·BTF·Linux 커널 호환성은 [공식 설치 문서](https://tetragon.io/docs/installation/container/)와 실제 실행으로 확인하고 버전을 고정한다.
 

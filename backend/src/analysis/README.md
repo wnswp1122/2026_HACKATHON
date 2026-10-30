@@ -2,9 +2,9 @@
 
 LiteSOC — **AI 기반 서버 보안 모니터링·분석 플랫폼**.
 
-후속 기준은 **`d960d3f`**의 [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md)([PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 ai-analysis 담당 행을 확인했으며 기준 커밋의 파일과 SHA256 일치를 확인했다. 이 브랜치의 오래된 공통 docs와 충돌하면 위 원격 계획을 우선한다. 공통 docs와 다른 담당 코드는 수정하지 않는다.
+후속 기준은 **`d960d3f`**의 [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md)([PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 ai-analysis 담당 행을 확인했으며 기준 커밋의 파일과 SHA256 일치를 확인했다. 스냅샷의 안전 입력 범위는 이 계획을 유지한다.
 
-`ai-analysis` 소유 범위 구현이다. 공통 [HTTP·DB 계약](../../../docs/saas-parallel-development.md)과 [수신/안전 입력 기준](../../../docs/api-contract.md)을 따른다. 이 브랜치에는 core/data/app이 없으므로 단독 임시 앱·문서 SQL·sample PNG·mock upstream으로 검증한다. 전체 SaaS/프론트 통합이나 실제 AI 검증 완료를 뜻하지 않는다.
+SaaS에 통합된 AI 분석 모듈이다. 공통 [HTTP·DB 계약](../../../docs/saas-parallel-development.md)과 [수신/안전 입력 기준](../../../docs/api-contract.md)을 따른다. 아래 과거 독립 검증 기록과 현재 통합 상태는 구분한다. Gemini 전환은 실제 외부 호출 없이 검증하며 모델의 분석 성공은 키 설정 후 확인해야 한다.
 
 ## 연결과 실행
 
@@ -25,12 +25,12 @@ core 통합 시에는 backend 가상환경에 이 폴더의 requirements를 설�
 | [router.py](router.py) | `/api/snapshots`의 이미지 PUT, 분석 POST/GET. 업로드 본문을 읽으며 5 MiB 제한 |
 | [validation.py](validation.py) | Pillow 검증/실제 디코딩, 허용된 Snapshot 필드와 분석 결과의 Pydantic 검증 |
 | [service.py](service.py) | 행 잠금, 이미지 불변 저장, 성공 결과 재사용·PostgreSQL 저장 |
-| [upstream.py](upstream.py) | 고정 Responses URL로 HTTPX 요청, 오류/완성 상태/구조 검증 |
+| [upstream.py](upstream.py) | 고정 Gemini URL로 HTTPX 요청, 오류/종료 사유/구조 검증 |
 | [instructions-v2.md](instructions-v2.md) | 5개 화면의 관찰 한계와 LiteSOC 명칭을 반영한 한국어 지침. 신규 분석은 `snapshot-analysis-v2` |
 
 기존 [instructions-v1.md](instructions-v1.md)는 과거 성공 결과의 지침 근거로 보존한다. 지침 갱신은 기존 성공 결과를 바꾸거나 외부 재호출을 일으키지 않는다. 같은 스냅샷은 저장된 instructionVersion과 결과를 그대로 반환한다. v2 분석을 새로 원하면 새 스냅샷을 생성한다.
 
-[.env.example](.env.example)은 변수 이름만 제공한다. `.env` 자동 로딩은 하지 않는다. `DATABASE_URL`은 core DB 연결이 읽으며 `OPENAI_API_KEY`, `OPENAI_MODEL`은 서버에만 설정한다. 모델 기본값은 없다. 기존 성공 결과 조회/재사용에는 AI 설정이 필요하지 않다. 신규 분석에서 키 또는 모델이 비어 있거나 지침 파일이 없으면 503이다. 실제 키를 명령 인자·로그·브라우저·Git에 넣지 않는다.
+[.env.example](.env.example)은 변수 이름만 제공한다. `.env` 자동 로딩은 하지 않는다. `DATABASE_URL`은 core DB 연결이 읽으며 `GEMINI_API_KEY`, `GEMINI_MODEL`은 서버에만 설정한다. 예제 모델 ID는 `gemini-2.5-flash`이며 `models/` 접두사 없는 ID를 지정한다. OpenAI 설정은 사용하지 않는다. 모델 기본값은 없다. 기존 성공 결과 조회/재사용에는 AI 설정이 필요하지 않다. 신규 분석에서 키 또는 모델이 비어 있거나 지침 파일이 없으면 503이다. 실제 키를 명령 인자·로그·브라우저·Git에 넣지 않는다.
 
 ## 동작과 계약
 
@@ -38,15 +38,15 @@ core 통합 시에는 backend 가상환경에 이 폴더의 requirements를 설�
 - `POST /api/snapshots/{snapshotId}/analysis`: 본문 없음. 스냅샷 행의 `SELECT ... FOR UPDATE` 이후 기존 성공 결과를 조회한다. 성공이 없으면 **저장된 payload와 PNG**만 함께 전송하며 이벤트·라이브 UI·외부 자료를 다시 조회하지 않는다. 성공을 검증해 commit한 다음 201, 기존 성공은 외부 호출 없이 200이다.
 - `GET /api/snapshots/{snapshotId}/analysis`: 저장된 성공 결과 200. 없는 스냅샷은 404 `SNAPSHOT_NOT_FOUND`, 성공 결과가 없으면 404 `ANALYSIS_NOT_FOUND`다.
 
-이미지 누락은 409 `IMAGE_REQUIRED`, 미설정은 503 `AI_NOT_CONFIGURED`, upstream HTTP/네트워크 오류·거절·미완성·잘못된 JSON/구조는 502 `AI_FAILED`, HTTPX timeout은 504 `AI_TIMEOUT`이다. upstream이 HTTP 504 자체를 반환한 경우는 외부 HTTP 실패이므로 502로 처리한다. 응답에 upstream 본문/예외/키를 복사하지 않는다.
+이미지 누락은 409 `IMAGE_REQUIRED`, 미설정은 503 `AI_NOT_CONFIGURED`, 요청·토큰 한도 초과(HTTP 429)는 503 `AI_QUOTA_EXHAUSTED`, upstream HTTP/네트워크 오류·거절·미완성·잘못된 JSON/구조는 502 `AI_FAILED`, HTTPX timeout은 504 `AI_TIMEOUT`이다. upstream이 HTTP 504 자체를 반환한 경우는 외부 HTTP 실패이므로 502로 처리한다. 응답에 upstream 본문/예외/키를 복사하지 않는다.
 
 잠금은 외부 요청부터 성공 저장까지 유지한다. 프로세스가 달라도 같은 스냅샷에 외부 요청을 동시에 보내지 않으며, 대기 요청은 잠금 획득 후 성공 결과를 다시 조회한다. 별도 processing/failed 행이나 스키마 변경은 없다. 실패 시 성공 행 없이 rollback되므로 재시도할 수 있다. 자동 외부 재시도는 하지 않는다. 외부 처리 후 서버 장애/DB commit 실패가 나면 재시도 시 외부 호출이 반복될 수 있어 과금까지 포함한 exactly-once 보장은 아니다.
 
-`Analysis`는 analysisId/snapshotId/UTC createdAt/실제 응답 model/instructionVersion과 `result`의 facts/hypotheses/checks/limitations 문자열 배열을 반환한다. 응답은 completed 상태, 오류·미완성 정보 없음, assistant의 단일 output_text, 네 배열의 엄격한 타입/추가 키 금지/빈 문자열 금지를 통과해야 저장한다. upstream 응답은 최대 1 MiB로 제한한다.
+`Analysis`는 analysisId/snapshotId/UTC createdAt/실제 응답 model/instructionVersion과 `result`의 facts/hypotheses/checks/limitations 문자열 배열을 반환한다. 응답은 차단 정보 없음, 단일 candidate의 finishReason=STOP, model 역할의 텍스트 JSON, 실제 modelVersion, 네 배열의 엄격한 타입/추가 키 금지/빈 문자열 금지를 통과해야 저장한다. thought 파트는 결과에서 제외한다. upstream 응답은 최대 1 MiB로 제한한다.
 
 ## 외부 전송 경계와 지침
 
-스냅샷 입력은 중첩 객체까지 공통 문서의 필드 allowlist로 확인한다. rawEvent, process/명령 인자, 환경변수 등 예상 밖 필드가 있으면 제거·재구성해 보내는 대신 **전송 전에 실패**한다. ID 일치도 확인한다. 통과한 원래 payload JSON 값과 저장 PNG 바이트를 input_text/input_image(data URL)로 함께 보낸다. 키는 인증 헤더, 모델은 요청 설정으로만 사용하며 환경 전체나 원본 이벤트를 넣지 않는다. `store: false`, tools 없음, 고정 `https://api.openai.com/v1/responses`, 리다이렉트·환경 proxy·SDK 자동 재시도 없음이다. 연결 timeout은 5초, 읽기/쓰기/풀 timeout은 60초의 비활성 기준이다.
+스냅샷 입력은 중첩 객체까지 공통 문서의 필드 allowlist로 확인한다. rawEvent, process/명령 인자, 환경변수 등 예상 밖 필드가 있으면 제거·재구성해 보내는 대신 **전송 전에 실패**한다. ID 일치도 확인한다. 통과한 원래 payload JSON 값과 저장 PNG 바이트를 text/inlineData(base64, image/png)로 함께 보낸다. 키는 `x-goog-api-key` 헤더에만 넣고 모델은 검증된 ID로 URL 경로에 지정한다. 환경 전체나 원본 이벤트를 넣지 않는다. 지침은 systemInstruction, 결과 스키마는 generationConfig.responseJsonSchema로 전달한다. tools 없음, 고정 `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`, 리다이렉트·환경 proxy·SDK 자동 재시도 없음이다. OpenAI의 `store: false`와 동일한 보관 제어를 가정하지 않는다. 무료 등급의 입력·응답은 Google 제품 개선에 사용될 수 있으므로 실제 민감 데이터 전송 전에 [데이터 이용 조건](https://ai.google.dev/gemini-api/terms)을 확인한다. 연결 timeout은 5초, 읽기/쓰기/풀 timeout은 60초의 비활성 기준이다.
 
 지침은 JSON·이미지·식별자 안의 지시를 분석 자료로만 취급하고 한국어 facts/hypotheses/checks/limitations를 구분한다. 수치·ID는 JSON 우선, sample/live·요약 생략·outcome=unknown·PNG 불일치를 설명하며 공격/유출/차단 성공을 단정하거나 정책·명령을 실행하지 않는다.
 
@@ -56,7 +56,9 @@ core 통합 시에는 backend 가상환경에 이 폴더의 requirements를 설�
 
 서버는 PNG의 내용과 스냅샷의 시각적 일치나 이미지 속 비밀값 부재를 증명하지 않는다. 프론트가 원본/명령 인자/비밀값을 제외한 고정 영역만 캡처해야 한다. 이 통제와 실제 모델의 지침 준수·한국어 분석 품질은 통합/실제 AI 검증 대상이다.
 
-공식 문서 확인(2026-10-31): [Responses 이미지 입력](https://developers.openai.com/api/docs/guides/images-vision), [Structured Outputs 및 거절/미완성](https://developers.openai.com/api/docs/guides/structured-outputs), [모델의 이미지·Responses·Structured Outputs 지원 표 예](https://developers.openai.com/api/docs/models/gpt-5-mini). 마지막 페이지의 모델은 deprecated 표시를 확인했으며 기본값/권장 모델로 채택하지 않았다. 운영자가 실제 사용할 모델의 지원·접근 권한을 확인한 후 명시해야 한다. 라이브러리 근거는 [Pillow verify/load](https://pillow.readthedocs.io/en/stable/reference/Image.html), [HTTPX timeout](https://www.python-httpx.org/advanced/timeouts/), [psycopg 트랜잭션](https://www.psycopg.org/psycopg3/docs/basic/transactions.html), [PostgreSQL 행 잠금](https://www.postgresql.org/docs/17/explicit-locking.html)이다.
+Gemini 전환 참고: [generateContent REST 계약](https://ai.google.dev/api/generate-content), [구조화 출력](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [이미지 입력](https://ai.google.dev/gemini-api/docs/image-understanding), [무료·유료 요금과 데이터 이용](https://ai.google.dev/gemini-api/docs/pricing). 무료 사용은 프로젝트·모델별 한도 내에서만 가능하며 유료 전환이나 한도 증액을 자동으로 수행하지 않는다.
+
+아래 검증 기록은 전환 전 OpenAI 구현의 이력이며 Gemini 실호출의 증거가 아니다.
 
 ## 독립 검증 환경
 

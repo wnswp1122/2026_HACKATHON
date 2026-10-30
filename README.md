@@ -2,7 +2,7 @@
 
 사용자 서버의 게시판 활동을 Tetragon으로 관찰하고 정책 대응 결과를 확인한다. 이벤트를 SaaS에 보내 대시보드에서 조회하고, 선택한 시점의 데이터와 대시보드 캡처를 함께 AI로 분석한다.
 
-게시판·Tetragon·전송기·SaaS 수신/조회/AI·프론트의 7개 기능 워크트리를 통합했다. 실제 PostgreSQL과 연결한 5개 화면, 리플레이, 안전 스냅샷·PNG 업로드를 확인했다. 실제 AI 제공자 호출은 키 설정 후 별도로 확인해야 한다. 상세 범위는 [통합 계획과 검증 기록](worklog/integration-merge.md)을 따른다.
+게시판·Tetragon·전송기·SaaS 수신/조회/AI·프론트의 7개 기능 워크트리를 통합했다. 실제 PostgreSQL과 연결한 5개 화면, 리플레이, 안전 스냅샷·PNG 업로드를 확인했다. 신규 AI 분석은 Gemini API를 사용하며, 실제 제공자 호출은 서버의 `GEMINI_API_KEY`·`GEMINI_MODEL` 설정 후 별도로 확인해야 한다. 상세 범위는 [통합 계획과 검증 기록](worklog/integration-merge.md)을 따른다.
 
 ## 담당과 시작 문서
 

@@ -53,7 +53,7 @@ function errorMessage(code: string) {
     HTTP_502: '조회 서버에 연결할 수 없습니다. 잠시 후 새로고침해 주세요.',
     HTTP_503: '조회 서버를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
     AI_NOT_CONFIGURED: 'AI가 서버에 설정되지 않았습니다. 서버의 키·모델 설정이 필요합니다.',
-    AI_QUOTA_EXHAUSTED: 'OpenAI 크레딧이 소진되었습니다. 프로젝트의 결제·사용 한도를 확인한 뒤 같은 스냅샷으로 재시도하세요.',
+    AI_QUOTA_EXHAUSTED: 'Gemini API 사용 한도에 도달했습니다. AI Studio에서 요청·토큰 한도를 확인하고, 한도가 회복된 뒤 같은 스냅샷으로 재시도하세요.',
     AI_FAILED: 'AI 분석에 실패했습니다. 성공 결과는 생성되지 않았습니다.',
     AI_TIMEOUT: 'AI 응답 시간이 초과되었습니다. 같은 스냅샷으로 재시도할 수 있습니다.',
     IMAGE_REQUIRED: '스냅샷 이미지가 필요합니다. 업로드 상태를 확인하세요.',
