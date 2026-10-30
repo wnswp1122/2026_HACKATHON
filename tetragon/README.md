@@ -109,6 +109,16 @@ python3 -m venv .venv
 
 ## 적용·조회·해제·종료
 
+### 게시판과 SaaS DB를 같은 VM에서 검증할 때
+
+기본 export는 호스트 전체 프로세스 이벤트를 포함한다. SaaS PostgreSQL을 같은 VM에 두면 이벤트 저장용 DB 접속의 프로세스 종료가 다시 수집되어 수신량이 늘어나는 순환이 생길 수 있다. 이 로컬 통합 구성에서만 `TETRAGON_EXPORT_DEMO_ONLY=1 .venv/bin/python runtime.py start`로 **게시판 컨테이너 전용 export**를 선택한다. `hack-demo`의 실제 ID 앞 31자를 Tetragon v1.8.0의 `container_id` 정규식 allowlist로 전달하며, 게시판의 실행·종료·정책 이벤트만 JSONL에 기록한다. 원본의 필드나 시각은 바꾸지 않는다.
+
+미설정 또는 `0`은 기존 전체 export이고, 다른 값은 오류다. 고객 서버 전체 관찰을 이 옵션으로 대체하면 안 된다. 컨테이너 이름 기반 정책이 아니므로 `hack-demo`를 재생성하면 ID도 바뀐다. `start`는 요청한 필터와 기존 컨테이너 옵션이 다르면 재생성을 안내하고 실패한다. 옵션 변경 시 소유 label 확인 → `runtime.py stop` → 중지된 `hack-tetragon`만 제거 → 동일 환경변수로 `start` → `observe`/`network` 재적용 순서로 진행한다. 게시판·DB 볼륨·이벤트 디렉터리는 삭제하지 않는다. 이후 재시작에도 같은 환경변수를 지정한다.
+
+근거: [v1.8.0 Filter.container_id 정의](https://github.com/cilium/tetragon/blob/v1.8.0/api/v1/tetragon/events.proto), [JSON export filtering](https://tetragon.io/docs/concepts/events/#export-filtering). 이 필터는 JSON export 범위만 제한하며, gRPC 스트림이나 커널 정책 적용 범위를 바꾸지 않는다. 전송기의 파일 회전 시 종료·재시작 시 EOF부터 읽는 제한도 그대로다.
+
+통합 실행에서 기본 전체 export는 PostgreSQL 프로세스 종료를 반복 수집했고 전송기는 2,818건 ACK 뒤 10MB 파일 회전으로 종료했다. 게시판 전용 옵션 적용 후 실제 file probe·성공/거부 network probe·health를 실행하자 SaaS에 실행 4건, 종료 4건, 파일 접근 2건, 네트워크 2건이 `live`로 저장됐다. 8초 뒤 재조회도 12건으로 유지되고 PostgreSQL 이벤트는 없었다. 두 네트워크 결과 모두 `outcome=unknown`, 센서 상태는 `SENSOR_STATUS_UNSUPPORTED`를 유지했다. 잘못된 옵션과 기존 설정 불일치는 종료 코드 1, 동일 옵션의 컨테이너 재시작과 정책 재적용은 성공했다. 이 확인은 공유 VM 통합 범위이며 장기 수집·회전 복구·무손실 전송 검증은 아니다.
+
 VM의 위 `src` 폴더에서 실행한다.
 
 ```sh

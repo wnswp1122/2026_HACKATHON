@@ -122,10 +122,24 @@ def prepare() -> None:
 def start() -> None:
     ROOT.mkdir(parents=True, exist_ok=True)
     (ROOT / "policies").mkdir(exist_ok=True)
+    demo_only = os.environ.get("TETRAGON_EXPORT_DEMO_ONLY", "0")
+    if demo_only not in ("0", "1"):
+        raise RuntimeError("TETRAGON_EXPORT_DEMO_ONLY는 0 또는 1이어야 합니다")
+    export_options = []
+    if demo_only == "1":
+        demo = inspect("hack-demo")
+        if demo is None:
+            raise RuntimeError("demo 전용 export에는 소유한 hack-demo가 필요합니다")
+        container_id = demo["Id"][:31]
+        export_options = ["--export-allowlist=" + json.dumps({"container_id": [f"^{container_id}"]})]
     current = inspect("hack-tetragon")
     if current:
         if current["State"]["Running"]:
             raise RuntimeError("hack-tetragon이 이미 실행 중")
+        configured = [arg for arg in current["Config"].get("Cmd", [])
+                      if arg.startswith("--export-allowlist=")]
+        if configured != export_options:
+            raise RuntimeError("export allowlist가 기존 컨테이너와 다릅니다. 소유 확인과 로그 보존 후 재생성하세요")
         docker("start", "hack-tetragon")
         wait_ready([*POLICY_CLI, "list"])
         return
@@ -137,7 +151,7 @@ def start() -> None:
            "-v", f"{ROOT / 'policies'}:/policies:ro", IMAGE,
            "--export-filename=/var/log/tetragon/events.jsonl", "--export-file-perm=644",
            "--enable-process-ns", "--server-address=unix:///var/run/tetragon/tetragon.sock",
-           "--health-server-address=")
+           "--health-server-address=", *export_options)
     wait_ready([*POLICY_CLI, "list"])
 
 
