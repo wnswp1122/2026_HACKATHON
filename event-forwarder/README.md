@@ -2,7 +2,7 @@
 
 **AI 기반 서버 보안 모니터링·분석 플랫폼** LiteSOC의 이벤트·상태 전송기다. JSONL 객체 한 줄을 [v1 수신 계약](../docs/api-contract.md)의 봉투로 전송한다. 원본 정규화·정책 판정·AI 호출은 하지 않는다.
 
-이번 작업의 단일 기준은 **`d960d3f`** ([새 5화면 계획 원격 원문](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [계약 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. 이 브랜치에 없는 새 계획을 예전 `docs/` 사본으로 대체하지 않는다. 상태 전송은 이 후속 계약을 따르며 기존 이벤트 v1·AI 안전 Snapshot은 변경하지 않는다.
+기존 상태 전송 구현의 기준은 **`d960d3f`** ([새 5화면 계획 원격 원문](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [계약 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. 이 브랜치에 없는 새 계획을 예전 `docs/` 사본으로 대체하지 않는다. 상태 전송은 이 후속 계약을 따르며 기존 이벤트 v1·AI 안전 Snapshot은 변경하지 않는다.
 
 `--check-config`, `--follow`, `--replay PATH`, `--status-follow PATH`, `--status-replay PATH` 중 **정확히 하나**를 선택한다.
 
@@ -38,9 +38,46 @@ event-forwarder/.venv/bin/python event-forwarder/main.py --follow
 
 follow는 Ctrl+C로 종료한다. 시작 전 미완결 줄의 나머지도 보내지 않으며, 시작 후 쓰인 미완결 줄은 개행까지 보관한다. 빈 줄은 건너뛰고 깨진 JSON·비객체·빈 객체·잘못된 UTF-8은 오류로 집계한 뒤 다음 줄로 진행한다. JSON 숫자와 문자열을 재직렬화하지 않고 원문 객체를 봉투에 넣어 원본 값을 보존한다.
 
+## 선택적 durable follow
+
+프로세스가 중단돼도 **이미 저장한 pending 봉투의 `messageId`와 원문, 읽기 위치**를 유지하려면 다음처럼 실행한다. Python 표준 라이브러리 SQLite를 사용하며 Linux/macOS의 로컬 디스크에서 실행한다. 기존 옵션·v1 봉투·ACK·`source=live/sample` 계약은 유지한다. 공통 계약 문서에서 제외했던 영속 복구를 이 옵션에 한해 추가하며 기본 follow/replay/status 동작은 그대로다.
+
+```sh
+# 최초 실행은 기존 follow처럼 현재 EOF부터 시작한다.
+# 같은 설정과 디렉터리로 재실행하면 저장된 pending → checkpoint 이후 줄 순서로 처리한다.
+event-forwarder/.venv/bin/python event-forwarder/main.py --follow \
+  --spool-dir event-forwarder/.local/spool \
+  --spool-max-bytes 67108864
+```
+
+- `--spool-dir PATH`는 **`--follow`에서만** 허용한다. 큐는 인스턴스·이벤트 URL·절대 입력 경로에 결합된다. 바꾸면 `spool_configuration_mismatch`로 중단하며, 토큰만 교체하는 것은 허용한다. URL은 해시로 결합하고 토큰은 저장하지 않는다. 환경변수로 자동 활성화하지 않는다.
+- 한 번에 **pending 1건**을 보관한다. 완결된 유효 줄을 읽으면 v1 본문·UUID와 다음 읽기 위치를 같은 트랜잭션에서 먼저 commit한다. 유효 ACK 뒤 pending을 삭제한다. ACK 유실/삭제 전 강제 종료 시 같은 바이트·ID로 다시 전송하며 수신기의 중복 ACK를 사용한다. 빈 줄·잘못된 입력은 진단 후 위치만 저장한다.
+- 재시도 소진, 재시도 없는 4xx/redirect는 `spool_delivery_failed`/exit 2로 중단하고 pending을 유지한다. 401/403도 기존 `authentication_error`/exit 2이며 pending을 유지한다. 재시작은 같은 pending을 새 요청 묶음으로 시도한다. 실패하는 이벤트를 몰래 버리거나 다음 이벤트로 진행하지 않으므로 원인 해결 뒤 재시작한다.
+- 최초 실행 전 미완결 줄의 나머지는 제외한다. 이후 생긴 미완결 줄은 checkpoint를 넘기지 않아 재시작 후에도 개행까지 다시 읽는다. 중단 중 추가된 줄은 같은 파일에 남아 있으면 다음 시작에 처리한다. **전송 중에는 다음 줄을 spool에 복사하지 않는다.** 미처리 입력의 보존은 원본 로그 보관에 의존한다.
+- inode/device 교체·삭제·축소를 감지하면 기존과 같이 exit 2로 중단한다. 재시작 때도 저장한 inode/offset과 직전 256바이트 SHA256 경계를 확인해 `input_replaced`, `input_truncated`, `input_checkpoint_mismatch`를 보고한다. 저장한 pending은 입력을 확인하기 **전에** 전송하므로 이미 확보한 이벤트는 파일 삭제/회전 후에도 복구할 수 있다. 회전 파일 탐색·자동 이어붙이기는 하지 않는다.
+- 회전/축소 뒤에는 자동 재시작을 잠시 멈추고 원본·회전 로그와 큐를 보존해 미처리 구간을 확인한다. 기존 inode의 파일을 원래 경로로 복원할 수 있다면 같은 큐로 이어간다. 복원할 수 없으면 보관 로그의 필요한 구간을 기존 `--replay`로 **sample** 전송할지 판단하고, 새 입력에는 새 spool 디렉터리로 시작한다. 새 큐는 다시 EOF부터이며 기존 ID/중복 제거를 이어받지 않는다. 미확인 상태에서 큐 삭제나 수동 DB 수정을 하지 않는다.
+
+디렉터리는 없으면 0700으로 만들고 기존 디렉터리도 현재 사용자 소유·0700이어야 한다. DB와 writer lock은 현재 사용자 소유·0600인 일반 파일이어야 하며 symlink/다중 hardlink를 거부한다. 조건 불일치는 `spool_permissions`, 같은 큐를 두 프로세스가 열면 `spool_in_use`로 종료한다. 큐에는 **암호화하지 않은 원본**이 들어가므로 Git 제외 `.local/`과 접근 제한된 로컬 디스크를 사용한다. 네트워크 파일시스템·공유 writer는 지원하지 않는다.
+
+`--spool-max-bytes`는 SQLite **본 파일 크기** 상한이며 기본 64 MiB, 허용 64 KiB~1 GiB다. 본 파일은 페이지 단위로 제한하고 pending 삭제 후 공간을 재사용한다. SQLite rollback journal이 일시적으로 추가 공간을 쓰므로 디스크에는 상한의 두 배 이상과 파일시스템 여유를 확보한다. 한 입력 줄은 상한의 절반까지 읽고 넘으면 `spool_line_too_large`로 중단한다. `spool_full` 또는 `spool_storage_error`/`spool_io_error` 발생 시 전송·위치 진행을 멈추며 기존 commit을 보존한다. 용량 문제는 여유 확보 또는 한도 상향 후 같은 큐로 재시작한다.
+
+**무손실·정확히 한 번 전달을 보장하지 않는다.** 저장 전 강제 종료된 줄은 원본이 유지돼야 복구되며 최초 EOF 이전 데이터는 읽지 않는다. 감지 사이 truncate 후 재성장, 같은 경계의 내용 변경, 읽는 도중 원본 수정, 원본 삭제·큐 손상/삭제·디스크/호스트 장애는 복구 범위 밖이다. SQLite FULL 동기화는 파일시스템·장치의 정상 동작을 전제한다. 원본 로그/큐 보존과 수신기의 영속 중복 제거가 필요하다. 상태 전송은 이 큐에 포함하지 않는다.
+
+Docker는 기본 `app`(UID 10001) 소유의 0700 `/spool`을 준비한다. **지속 named volume**을 연결하고 입력은 상위 디렉터리를 read-only mount한다. 컨테이너 안 로컬 파일만 쓰면 컨테이너 삭제 시 큐도 사라진다.
+
+```sh
+# 신뢰할 수 있는 로컬 env-file에는 컨테이너에서 접근 가능한 URL과 /input/events.jsonl을 설정한다.
+docker run --rm --env-file event-forwarder/.env \
+  --mount type=bind,src=/absolute/log-directory,dst=/input,readonly \
+  --mount type=volume,src=litesoc-event-spool,dst=/spool \
+  hack-event-forwarder:local --follow --spool-dir /spool
+```
+
+bind mount로 spool을 제공하면 호스트에서 UID 10001·0700 권한을 미리 준비해야 한다. 전송기는 호스트 권한을 임의로 바꾸지 않는다.
+
 ## 동작과 종료
 
-- `inputs.py`: replay의 한 번 읽기, follow의 부분 줄 보관과 0.2초 간격 파일 상태 확인을 담당한다. inode/device 교체·크기 축소·경로 삭제 시 이유와 함께 종료한다.
+- `inputs.py`: 기본 replay의 한 번 읽기, follow의 부분 줄 보관과 0.2초 간격 파일 상태 확인을 담당한다. inode/device 교체·크기 축소·경로 삭제 시 이유와 함께 종료한다.
 - `status_input.py`: 상태 JSON의 허용 필드/형식을 확인하고 원자적 파일 교체와 새 관측을 읽는다. 준비 상태·stale·정책 의미는 판정하지 않는다.
 - `forwarder.py`: UUID 메시지 봉투, Bearer 헤더, 이벤트/상태 ACK 확인·제한 재시도를 담당한다. 프로세스별 HTTPX Client 하나로 순차 전송하며 redirect와 환경변수 proxy 자동 사용은 비활성이다.
 - `main.py`: 모드 선택·설정·입력 오류 처리·최종 집계를 담당한다. 설정은 `settings.py`에서 검증하며 토큰의 repr을 숨긴다. 제어문자·공백이 있는 토큰은 설정 오류다.
@@ -67,7 +104,7 @@ HTTPX timeout은 5초다. 네트워크 오류·429·5xx·불명확 ACK는 **최�
 | 2 | 잘못된 CLI/설정, 입력 파일 오류·교체·삭제·축소, 401/403 |
 | 130 | Ctrl+C/SIGINT. 대기 중이던 부분 줄·전송 중 요청의 전달은 보장하지 않음 |
 
-인증 오류의 `failed`는 시도한 이벤트만 센다. 아직 읽지 않은 파일 전체 건수를 실패 개수로 추정하지 않는다. HTTP 최종 실패 후에는 다음 이벤트로 진행하지만 작업 종료 코드는 실패를 유지한다.
+인증 오류의 `failed`는 시도한 이벤트만 센다. 아직 읽지 않은 파일 전체 건수를 실패 개수로 추정하지 않는다. 기본 모드는 HTTP 최종 실패 후에는 다음 이벤트로 진행하지만 작업 종료 코드는 실패를 유지한다.
 
 ## Docker
 
@@ -75,7 +112,7 @@ HTTPX timeout은 5초다. 네트워크 오류·429·5xx·불명확 ACK는 **최�
 docker --host "unix://$HOME/.lima/2026-hack-client/sock/docker.sock" build -t hack-event-forwarder:local event-forwarder
 ```
 
-이미지에는 다섯 Python 모듈을 포함하며 `app` 사용자로 실행한다. 토큰은 런타임 환경으로 전달하고, VM의 입력 디렉터리를 read-only mount한다. 원자적 교체를 보려면 상태 파일 하나가 아닌 **상위 디렉터리**를 mount한다. 호스트의 `.env`는 이미지에 포함하지 않는다. VM localhost와 Mac localhost는 다르므로 수신 주소를 실행 위치에 맞춘다. 공유 VM 중지나 기본 Docker context 변경은 필요하지 않다.
+이미지에는 여섯 Python 모듈을 포함하며 `app` 사용자로 실행한다. 토큰은 런타임 환경으로 전달하고, VM의 입력 디렉터리를 read-only mount한다. 원자적 교체를 보려면 상태 파일 하나가 아닌 **상위 디렉터리**를 mount한다. 호스트의 `.env`는 이미지에 포함하지 않는다. VM localhost와 Mac localhost는 다르므로 수신 주소를 실행 위치에 맞춘다. 공유 VM 중지나 기본 Docker context 변경은 필요하지 않다.
 
 ## 독립 상태 전송
 
@@ -190,3 +227,25 @@ Linux VM의 전용 Docker 소켓을 명시해 `hack-event-forwarder:status-manua
 - **core 입력:** VM에서 접근 가능한 `/api/sensor-status` 전체 URL, 기존 토큰/허용 instanceId, reportId UUID ACK가 필요하다. 토큰은 Git·메시지·명령 인자 대신 런타임 환경으로 연결한다. core의 진행 중 상태 모델/라우터를 읽어 필드·ACK의 정적 일치를 확인했지만 해당 서버 기동·저장은 이번 증거가 아니다.
 - 동일 observedAt의 수정 보고는 새 관측으로 보내지 않는다는 점과 시작 시 기존 파일 1회 전송, 다른 과거/미래 시각의 원값 전달 방침을 조정 담당에게 Orca 메시지로 알렸다. 초기 ‘이전 시각도 무조건 무시’ 제안은 정정했다. Tetragon/core에도 연결 사항을 알렸다. 메시지 enqueue는 상대의 확인·합의 완료를 뜻하지 않는다.
 - **실제 통합 미검증:** 실제 상태 파일→이 전송기→임시 수신기 1건은 확인했지만 SaaS DB→readiness/5화면의 연결, 30초 운영 주기, SaaS 90초 stale/CLOCK_SKEW·중복 신선도·최신 보고 선택은 확인하지 않았다. SaaS 주소·인증과 생산자 daemon 운영 입력이 준비되면 기존 작업에서 연결 검증할 수 있다. 임시 수신기의 성공을 SaaS 저장 성공으로 보고하지 않는다.
+
+## Durable follow 수동 검증 기록 (2026-10-31)
+
+합성 JSONL과 일회성 실제 HTTP 수신기를 사용했다. 이 검증의 `source=live`는 follow 동작 확인이며 **실제 Tetragon 관측·제품 SaaS 저장의 증거가 아니다.** 새 CI/자동 테스트 파일은 추가하지 않았다.
+
+| 환경·조작 | 직접 확인한 결과 |
+|---|---|
+| macOS Python 3.12.2, 임시 HTTP 수신기, 13개 시나리오·17요청 | 최초 EOF 이전 제외, 정상 ACK 뒤 pending 0, 종료 중 추가된 줄을 같은 checkpoint부터 전송. 큰 소수의 본문 바이트 유지 |
+| 수신기는 저장 후 연결을 끊어 ACK 유실, 전송기 SIGKILL 후 재시작 | SQLite pending의 UUID/본문과 첫 수신 본문이 일치. 재시작 요청도 바이트 동일, 200 duplicate 1건 뒤 새 줄 201 |
+| 부분 줄을 쓴 뒤 종료·재시작 및 나머지 추가 | 개행 전 요청 0, 개행 후 완결 이벤트 1건. 같은 큐의 두 번째 writer는 `spool_in_use`/exit 2 |
+| 503 지속 및 401/422 | 503 총 4회 뒤 exit 2·pending 1, 401은 즉시 인증 오류·pending 보존, 422도 삭제하지 않음 |
+| pending이 있는 동안 로그 rename/새 inode 생성 | 기존 pending ACK 후 `input_replaced`/exit 2, 새 파일로 조용히 전환하지 않음. 입력 삭제 후에도 저장된 pending은 먼저 ACK |
+| 종료 중 truncate·동일 크기 다른 내용으로 재작성 | 각각 `input_truncated`, `input_checkpoint_mismatch`/exit 2 |
+| 64 KiB 한도에서 33,000자 입력 | `spool_line_too_large`/exit 2, checkpoint offset 0·DB ≤ 65,536 bytes |
+| SQLite 페이지를 합성 데이터로 미리 채운 용량 실패 주입 | `spool_full`/exit 2, 트랜잭션 rollback으로 offset 0·pending 0·HTTP 0건, DB 상한 유지. 실제 디스크 고갈 실험은 아님 |
+| 0755 spool, symlink lock, 손상 SQLite, 다른 instanceId 재사용 | 각각 권한 오류·손상 오류·결합 불일치로 중단. 손상 DB를 초기화하지 않음. 잘못된 CLI는 디렉터리 생성 전에 거부 |
+| 기본 follow/replay/status-replay/check-config | 기본 follow의 live·회전 중단, 개행 없는 replay의 sample, 상태 reportId ACK·sample, check-config의 요청 없는 설정 검사 유지 |
+| Lima Linux Docker, Python 3.12, `app` UID 10001, 지속 named volume | 이미지 빌드 성공. 디렉터리 0700/DB 0600, HTTP ACK 유실→자식 SIGKILL→재시작에서 동일 본문·ID/duplicate 1, SIGINT exit 130. 소유 컨테이너·임시 volume 제거 확인 |
+
+lock 가상환경 `pip check`, 전체 Python 모듈 구문 검사, `git diff --check`를 통과했다. 일회성 스크립트의 존재하지 않는 상태 fixture 경로·진단 출력 순서 가정 오류는 합성 상태를 직접 작성하고 `spool_ready`까지 읽도록 고친 뒤 해당 실험을 완료했다. 실제 원본·토큰·DB·실험 스크립트는 커밋하지 않았다.
+
+실제 Tetragon→SaaS·DB 중복 제거 통합, 장시간/대량 부하, 실제 디스크 고갈·장치 손상·정전, 회전 로그 자동 복구는 여기서 검증하지 않았다. 상태 모드의 영속 재전송도 제공하지 않는다.
