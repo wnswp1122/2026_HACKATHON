@@ -24,7 +24,7 @@ export function Metrics({ data }: { data: Dashboard }) {
         <p>선택한 필터의 전체 범위</p>
       </article>
       <article className="metric warning">
-        <span>주의 필요</span>
+        <span>주의</span>
         <strong>
           {number(data.attention)}
           <small>건</small>
@@ -84,7 +84,7 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
         isAnimationActive={false}
       />
       <Area
-        name="주의 필요"
+        name="주의"
         dataKey="attention"
         stroke="#ff3b5c"
         fill="#3c1923"
@@ -126,7 +126,7 @@ export function Charts({ data, fixed = false }: { data: Dashboard; fixed?: boole
           <span>{data.bucketSeconds / 60}분 단위</span>
         </div>
         <div className="legend">
-          <i className="dot blue" /> 전체 이벤트 <i className="dot amber" /> 주의 필요
+          <i className="dot blue" /> 전체 이벤트 <i className="dot amber" /> 주의
         </div>
         <div className="chart">
           {fixed ? (

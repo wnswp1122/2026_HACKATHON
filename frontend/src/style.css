@@ -1769,3 +1769,36 @@ main,
 }
 
 .network-globe-3d { width: 100%; height: 460px; overflow: hidden; position: relative; }
+
+/* Initial monitoring scope shared by all five screens. */
+.setup-screen { min-height: 100vh; display: grid; place-items: center; padding: 48px 24px; background: radial-gradient(ellipse at top, #19212e 0, var(--bg) 65%); }
+.setup-content { width: min(100%, 760px); }
+.setup-content > .brand { padding: 0; margin-bottom: 36px; }
+.setup-description { color: var(--muted); font-size: 14px; line-height: 1.8; }
+.setup-content > .setup-description { margin: 12px 0 28px; font-size: 16px; }
+.setup-form { display: grid; gap: 16px; padding: 28px; }
+.setup-form > label { font-weight: 700; }
+.setup-form > label span { color: var(--muted); font-weight: 400; font-size: 14px; }
+.setup-form > select { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); }
+.setup-sources { border: 0; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.setup-sources legend { padding: 0 0 12px; font-weight: 700; }
+.setup-sources label { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.setup-sources label.selected { border-color: var(--pink); background: #ff3b5c08; }
+.setup-sources input { margin-top: 6px; accent-color: var(--pink); }
+.setup-sources label > span { display: grid; gap: 5px; }
+.setup-sources label > span > span, .setup-sources small { color: var(--muted); font-size: 13px; font-weight: 400; }
+.setup-sources small { margin-left: 8px; }
+.setup-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.setup-previews { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 24px; color: var(--muted); font-size: 13px; }
+.setup-previews span { display: flex; gap: 8px; }
+.setup-previews small { color: var(--pink); }
+.monitoring-scope { display: grid; min-width: 0; }
+.monitoring-scope b { overflow-wrap: anywhere; }
+.monitoring-scope small { color: var(--muted); font-size: 12px; }
+.policy-explanation { color: var(--muted); font-size: 13px; margin: -4px 0 16px; line-height: 1.8; }
+@media (max-width: 600px) {
+  .setup-screen { padding: 24px 16px; }
+  .setup-content h1 { font-size: 24px; }
+  .setup-form { padding: 18px; }
+  .setup-content > .brand { margin-bottom: 24px; }
+}

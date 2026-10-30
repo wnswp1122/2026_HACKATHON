@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { api } from './api';
+import { MonitoringSetup } from './MonitoringSetup';
 import { Detail } from './events/Detail';
 import { Filters, initialSelection } from './events/Filters';
 import { useDashboard } from './events/useDashboard';
@@ -10,6 +11,7 @@ import {
   dateTime,
   safeSnapshotFilters,
   selectionFilters,
+  sourceLabel,
   type Analysis,
   type PeriodFilters,
   type Selection,
@@ -33,10 +35,24 @@ const localTime = (value: string) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 23);
 };
 
+const scopeStorageKey = 'litesoc-monitoring-scope';
+function savedScope(): Pick<Selection, 'instanceId' | 'source'> | undefined {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(scopeStorageKey) || 'null');
+    if (value && (value.source === 'live' || value.source === 'sample') &&
+      (value.instanceId === undefined || typeof value.instanceId === 'string')) {
+      return { instanceId: value.instanceId, source: value.source };
+    }
+  } catch { /* Storage may be unavailable; setup still works for this visit. */ }
+}
+
 export default function App() {
   const { path, navigate } = useNavigation();
   const route = routes.find((route) => route.path === path);
-  const [selection, setSelection] = useState(initialSelection),
+  const [scope] = useState(savedScope);
+  const [configured, setConfigured] = useState(!!scope);
+  const [setupOpen, setSetupOpen] = useState(!scope);
+  const [selection, setSelection] = useState<Selection>(() => ({ ...initialSelection, ...scope })),
     [page, setPage] = useState(1),
     [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
@@ -57,13 +73,19 @@ export default function App() {
     selection,
     page,
     refresh,
-    ['/overview', '/telemetry', '/servers'].includes(path),
+    configured && !setupOpen && ['/overview', '/telemetry', '/servers'].includes(path),
   );
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (!configured) return;
+    try {
+      sessionStorage.setItem(scopeStorageKey, JSON.stringify({ instanceId: selection.instanceId, source: selection.source }));
+    } catch { /* Keep the in-memory selection when storage is unavailable. */ }
+  }, [configured, selection.instanceId, selection.source]);
   const stale = !instances.successAt || now - Date.parse(instances.successAt) > 10000;
   function choose(next: Selection) {
     if (busy) return;
@@ -114,6 +136,31 @@ export default function App() {
     onSelection: choose,
     onAnalyze: analyze,
   };
+  if (setupOpen) return (
+    <MonitoringSetup
+      selection={selection}
+      instances={instances.data?.items || []}
+      loading={instances.loading}
+      error={instances.error}
+      onRetry={() => setRefresh((value) => value + 1)}
+      onCancel={configured ? () => setSetupOpen(false) : undefined}
+      onStart={(instanceId, source) => {
+        if (configured && (instanceId !== selection.instanceId || source !== selection.source)) {
+          const url = new URL(location.href);
+          for (const name of ['replay', 'snapshot', 'event', 'analysis']) url.searchParams.delete(name);
+          history.replaceState(null, '', url);
+          setDetailId('');
+          setReplayFilters(undefined);
+        }
+        choose({ ...initialSelection, instanceId, source });
+        setConfigured(true);
+        setSetupOpen(false);
+        setBriefing(undefined);
+        setAnalysisContext(undefined);
+        setAnalysisOpen(false);
+      }}
+    />
+  );
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -151,7 +198,11 @@ export default function App() {
         <header className="topbar">
           <div>
             <span className="workspace-badge">L</span>
-            <b>로컬 보안 워크스페이스</b>
+            <div className="monitoring-scope">
+              <b>{selection.instanceId || '전체 인스턴스'}</b>
+              <small>{sourceLabel(selection.source)}</small>
+            </div>
+            <button disabled={busy} onClick={() => setSetupOpen(true)}>모니터링 설정</button>
             <span className="env-label">MVP</span>
           </div>
           <div>
@@ -226,13 +277,11 @@ export default function App() {
                   {briefing?.model.includes('mock') && <span>mock 응답 · 실제 모델 분석 아님</span>}
                 </div>
               </div>
-              <Filters
-                readinessOnly={path === '/readiness'}
+              {path !== '/readiness' && <Filters
                 selection={selection}
-                instances={instances.data?.items || []}
                 disabled={busy}
                 onChange={choose}
-              />
+              />}
               <p className="freshness">
                 source={selection.source || 'live + sample 혼합'} ·{' '}
                 {path === '/readiness'

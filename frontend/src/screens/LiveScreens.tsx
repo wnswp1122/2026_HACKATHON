@@ -43,6 +43,7 @@ export function Overview(props: Props) {
       {data && (
         <>
           <Scope filters={data.filters} />
+          <p className="policy-explanation">주의란? 이벤트의 정책명이 등록된 경고 정책명과 일치한다는 뜻입니다. 공격 확정이나 차단 성공을 뜻하지 않습니다.</p>
           <Stats
             items={[
               {
@@ -51,7 +52,7 @@ export function Overview(props: Props) {
                 note: '선택 범위 · 수신 이벤트',
               },
               {
-                label: '정책 일치',
+                label: '주의',
                 value: data.dashboard.attention,
                 note: '공격·차단 성공 판정 아님',
                 tone: 'warning',
@@ -107,7 +108,7 @@ export function Overview(props: Props) {
                       <small>{event.eventType}</small>
                     </span>
                     <span className={event.status === 'attention' ? 'pink-text' : ''}>
-                      {event.status === 'attention' ? '정책 일치' : '관찰'}
+                      {event.status === 'attention' ? '주의' : '관찰'}
                     </span>
                   </button>
                 ))}
@@ -179,7 +180,7 @@ export function ServersScreen(props: Props) {
           <Stats
             items={[
               {
-                label: '정책 일치',
+                label: '주의',
                 value: data.dashboard.attention,
                 note: '공격 확정 아님',
                 tone: 'warning',

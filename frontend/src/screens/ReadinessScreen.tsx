@@ -47,7 +47,7 @@ export function ReadinessScreen({
   if (!source)
     return (
       <div className="notice" role="status">
-        준비 점검은 출처를 혼합하지 않습니다. 위 필터에서 live 또는 sample을 선택하고 적용하세요.
+        준비 점검은 출처를 혼합하지 않습니다. 상단 모니터링 설정에서 실제 수집 또는 예시 데이터를 선택하세요.
       </div>
     );
   const data = resource.data?.value;

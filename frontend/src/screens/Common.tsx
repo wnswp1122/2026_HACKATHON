@@ -100,13 +100,13 @@ export function Timeline({
   return (
     <article className="panel timeline-panel">
       <div className="panel-heading">
-        <h3>{rate ? '이벤트 수신량 · 건/분' : '관찰 · 정책 일치 추이'}</h3>
+        <h3>{rate ? '이벤트 수신량 · 건/분' : '관찰 · 주의 추이'}</h3>
         <span>
           {dashboard.bucketSeconds / 60}분 버킷{rate ? ' 평균' : ''}
         </span>
       </div>
       <div className="legend">
-        <i className="dot blue" /> 전체 <i className="dot amber" /> 정책 일치
+        <i className="dot blue" /> 전체 <i className="dot amber" /> 주의
       </div>
       <div className="chart">
         <ResponsiveContainer width="100%" height={220}>
@@ -135,7 +135,7 @@ export function Timeline({
               isAnimationActive={false}
             />
             <Area
-              name={rate ? '정책 일치 건/분' : '정책 일치'}
+              name={rate ? '주의 건/분' : '주의'}
               dataKey="attention"
               stroke="#ff3b5c"
               fill="#3c1923"
@@ -166,7 +166,7 @@ export function ServerTable({
             <tr>
               <th>서버</th>
               <th>관찰 이벤트</th>
-              <th>정책 일치</th>
+              <th>주의</th>
               <th>최근 수신 · 전체 출처</th>
               {onSelect && <th>필터</th>}
             </tr>
@@ -209,7 +209,7 @@ export function ServerBars({ items }: { items: ServerSummary[] }) {
             <Bar dataKey="total" name="관찰 이벤트" fill="#22d3ee" isAnimationActive={false} />
             <Bar
               dataKey="attention"
-              name="정책 일치 (전체에 포함)"
+              name="주의 (전체에 포함)"
               fill="#ff3b5c"
               isAnimationActive={false}
             />
