@@ -1575,39 +1575,6 @@ main,
   gap: 15px;
   margin-bottom: 12px;
 }
-.time-window .mini-timeline {
-  display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  height: 42px;
-  overflow: hidden;
-}
-.mini-timeline span {
-  flex: 1;
-  background: #22d3ee;
-  min-width: 1px;
-}
-.window-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
-.window-controls label {
-  color: var(--muted);
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.window-controls input {
-  accent-color: var(--cyan);
-  max-width: 140px;
-}
-.window-controls button {
-  font-size: 10px;
-}
 @media (max-width: 1200px) {
   .telemetry-grid,
   .replay-grid {
@@ -1769,3 +1736,28 @@ main,
 }
 
 .network-globe-3d { width: 100%; height: 460px; overflow: hidden; position: relative; }
+
+/* Telemetry uses one time control for the chart and event list. */
+.telemetry-time-control { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; width: 100%; }
+.time-control-label, .applied-time-range, .time-zone { color: var(--muted); font-size: 12px; }
+.time-picker { position: relative; }
+.time-picker > summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; list-style: none; font-size: 14px; background: var(--bg); }
+.time-picker > summary::-webkit-details-marker { display: none; }
+.time-picker > summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.time-picker[open] > summary { border-color: var(--cyan); }
+.time-picker-content { position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; display: grid; grid-template-columns: 140px minmax(240px, 1fr); width: 460px; max-width: calc(100vw - 90px); padding: 18px; gap: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 32px #0008; }
+.quick-time-ranges, .absolute-time-range { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.time-picker-content strong { font-size: 13px; }
+.quick-time-ranges button { text-align: left; font-size: 13px; }
+.quick-time-ranges button[aria-pressed="true"] { color: var(--cyan); border-color: var(--cyan); }
+.filters .absolute-time-range label { flex: initial; min-width: 0; }
+.filters .absolute-time-range input { width: 100%; min-width: 0; }
+.timeline-explanation { color: var(--muted); font-size: 13px; line-height: 1.8; margin: 0 0 16px; }
+.timeline-axis-caption { color: var(--muted); font-size: 11px; margin: 0 0 8px; }
+@media (max-width: 600px) {
+  .time-picker-content { grid-template-columns: 1fr; width: 300px; }
+  .quick-time-ranges { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  .quick-time-ranges strong { width: 100%; }
+  .quick-time-ranges button { flex: 1 0 40%; }
+  .applied-time-range { width: 100%; line-height: 1.8; }
+}

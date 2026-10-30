@@ -227,6 +227,8 @@ export default function App() {
                 </div>
               </div>
               <Filters
+                timePicker={path === '/telemetry'}
+                range={live.data?.filters}
                 readinessOnly={path === '/readiness'}
                 selection={selection}
                 instances={instances.data?.items || []}

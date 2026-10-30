@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { api } from '../api';
 import { Charts } from '../events/Charts';
 import { EventTable } from '../events/EventTable';
 import type { useDashboard } from '../events/useDashboard';
-import { dateTime, number, type Dashboard, type PeriodFilters, type Selection } from '../types';
+import { number, type PeriodFilters, type Selection } from '../types';
 import {
   AnalysisAside,
   ResourceStatus,
@@ -88,7 +87,7 @@ export function Overview(props: Props) {
         <div className="stack">
           {data && (
             <>
-              <Timeline dashboard={data.dashboard} to={data.filters.to} />
+              <Timeline dashboard={data.dashboard} />
               {network.data && <UnmappedNetwork data={network.data.value} />}
               <article className="panel recent-events">
                 <div className="panel-heading">
@@ -128,24 +127,14 @@ export function Telemetry(props: Props) {
   return (
     <>
       <LiveStatus live={props.live} />
-      {data && <Scope filters={data.filters} />}
+      {data && <Scope filters={data.filters} compact />}
       <div className="telemetry-grid">
         <div className="stack">
-          {data && (
-            <>
-              <Timeline dashboard={data.dashboard} to={data.filters.to} rate />
-              <TimeWindow
-                dashboard={data.dashboard}
-                filters={data.filters}
-                selection={props.selection}
-                onSelection={props.onSelection}
-              />
-            </>
-          )}
+          {data && <Timeline dashboard={data.dashboard} explain />}
           <ResourceStatus resource={servers} label="서버별 집계" />
           {servers.data && (
             <>
-              <Scope filters={servers.data.filters} />
+              <Scope filters={servers.data.filters} compact />
               <ServerTable
                 items={servers.data.value.items}
                 onSelect={(id) => props.onSelection({ ...props.selection, instanceId: id })}
@@ -236,101 +225,5 @@ export function ServersScreen(props: Props) {
       </p>
       <AnalysisAside onAnalyze={() => props.onAnalyze(data?.filters)} />
     </>
-  );
-}
-
-function TimeWindow({
-  dashboard,
-  filters,
-  selection,
-  onSelection,
-}: {
-  dashboard: Dashboard;
-  filters: PeriodFilters;
-  selection: Selection;
-  onSelection: (value: Selection) => void;
-}) {
-  const [window, setWindow] = useState<{
-    dashboard: Dashboard;
-    filters: PeriodFilters;
-    start: number;
-    end: number;
-  }>();
-  const value = window || { dashboard, filters, start: 0, end: dashboard.timeline.length };
-  const rows = value.dashboard.timeline;
-  if (!rows.length) return null;
-  const from = rows[value.start]?.bucketStart || value.filters.from;
-  const to = rows[value.end]?.bucketStart || value.filters.to;
-  const max = Math.max(1, ...rows.map((row) => row.count));
-  const local = (date: string) => {
-    const d = new Date(date);
-    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 23);
-  };
-  return (
-    <article className="panel time-window">
-      <div className="panel-heading">
-        <h3>수신 기간 구간 선택</h3>
-        <span>조작 중에는 선택 기준을 고정합니다.</span>
-      </div>
-      <div className="mini-timeline">
-        {rows.map((row, i) => (
-          <span
-            key={row.bucketStart}
-            style={{
-              height: `${Math.max(3, (row.count / max) * 100)}%`,
-              opacity: i >= value.start && i < value.end ? 1 : 0.2,
-            }}
-            title={`${dateTime(row.bucketStart)} · ${row.count}건`}
-          />
-        ))}
-      </div>
-      <div className="window-controls">
-        <label>
-          구간 시작
-          <input
-            aria-label="구간 시작 버킷"
-            type="range"
-            min="0"
-            max={rows.length - 1}
-            value={value.start}
-            onChange={(e) =>
-              setWindow({
-                ...value,
-                start: Number(e.target.value),
-                end: Math.max(value.end, Number(e.target.value) + 1),
-              })
-            }
-          />
-        </label>
-        <label>
-          구간 종료
-          <input
-            aria-label="구간 종료 버킷"
-            type="range"
-            min="1"
-            max={rows.length}
-            value={value.end}
-            onChange={(e) =>
-              setWindow({
-                ...value,
-                end: Number(e.target.value),
-                start: Math.min(value.start, Number(e.target.value) - 1),
-              })
-            }
-          />
-        </label>
-        <button
-          onClick={() =>
-            onSelection({ ...selection, period: 'custom', from: local(from), to: local(to) })
-          }
-        >
-          선택 구간 적용
-        </button>
-        <button onClick={() => setWindow(undefined)}>구간 초기화</button>
-      </div>
-      <p className="hint">
-        {dateTime(from)} ~ {dateTime(to)} · 종료 제외
-      </p>
-    </article>
   );
 }

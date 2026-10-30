@@ -13,6 +13,7 @@ import {
   dateTime,
   number,
   sourceLabel,
+  typeLabels,
   type Dashboard,
   type PeriodFilters,
   type ServerSummary,
@@ -50,7 +51,17 @@ export function ResourceStatus({
     </div>
   );
 }
-export function Scope({ filters }: { filters: PeriodFilters }) {
+export function Scope({ filters, compact = false }: { filters: PeriodFilters; compact?: boolean }) {
+  if (compact) {
+    const labels = [
+      filters.instanceId,
+      filters.status && (filters.status === 'attention' ? '정책 일치' : '관찰됨'),
+      filters.eventType && typeLabels[filters.eventType],
+      filters.policyName,
+      filters.processExecId && '프로세스 필터 적용',
+    ].filter(Boolean);
+    return labels.length ? <p className="scope">적용 필터 · {labels.join(' · ')}</p> : null;
+  }
   return (
     <p className="scope">
       수신 시각 [ {dateTime(filters.from)} ~ {dateTime(filters.to)} ) ·{' '}
@@ -79,42 +90,36 @@ export function Stats({
 }
 export function Timeline({
   dashboard,
-  to,
-  rate = false,
+  explain = false,
 }: {
   dashboard: Dashboard;
-  to: string;
-  rate?: boolean;
+  explain?: boolean;
 }) {
-  const rows = dashboard.timeline.map((row) => {
-    const seconds = Math.max(
-      0.001,
-      Math.min(dashboard.bucketSeconds, (Date.parse(to) - Date.parse(row.bucketStart)) / 1000),
-    );
-    return {
-      ...row,
-      count: rate ? Number(((row.count * 60) / seconds).toFixed(2)) : row.count,
-      attention: rate ? Number(((row.attention * 60) / seconds).toFixed(2)) : row.attention,
-    };
-  });
   return (
     <article className="panel timeline-panel">
       <div className="panel-heading">
-        <h3>{rate ? '이벤트 수신량 · 건/분' : '관찰 · 정책 일치 추이'}</h3>
+        <h3>{explain ? '시간별 수집 이벤트 수' : '이벤트 · 정책 일치 추이'}</h3>
         <span>
-          {dashboard.bucketSeconds / 60}분 버킷{rate ? ' 평균' : ''}
+          {dashboard.bucketSeconds / 60}분당 건수
         </span>
       </div>
+      {explain && (
+        <p className="timeline-explanation">
+          서버에서 보낸 프로세스 실행·파일 접근·네트워크 등 관찰 기록을 수신 시각으로 집계합니다.
+          정책 일치는 전체 중 경고 정책에 해당하는 기록이며, 공격 횟수는 아닙니다.
+        </p>
+      )}
       <div className="legend">
         <i className="dot blue" /> 전체 <i className="dot amber" /> 정책 일치
       </div>
+      {explain && <p className="timeline-axis-caption">수신 시각 · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>}
       <div className="chart">
         <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={rows} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
+          <AreaChart data={dashboard.timeline} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
             <CartesianGrid stroke="#242a33" vertical={false} />
             <XAxis
               dataKey="bucketStart"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 12, fill: '#a6b1c2' }}
               minTickGap={50}
               tickFormatter={(v) =>
                 new Date(v).toLocaleString(
@@ -125,17 +130,17 @@ export function Timeline({
                 )
               }
             />
-            <YAxis allowDecimals={rate} tick={{ fontSize: 10 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <Tooltip labelFormatter={(v) => dateTime(String(v))} />
             <Area
-              name={rate ? '전체 건/분' : '전체 건수'}
+              name="수집 이벤트"
               dataKey="count"
               stroke="#22d3ee"
               fill="#12353e"
               isAnimationActive={false}
             />
             <Area
-              name={rate ? '정책 일치 건/분' : '정책 일치'}
+              name="정책 일치 (전체에 포함)"
               dataKey="attention"
               stroke="#ff3b5c"
               fill="#3c1923"

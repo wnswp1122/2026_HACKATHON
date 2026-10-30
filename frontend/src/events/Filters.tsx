@@ -1,5 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
+  dateTime,
+  type PeriodFilters,
   eventTypes,
   selectionFilters,
   typeLabels,
@@ -26,8 +28,12 @@ export function Filters({
   onChange,
   selection,
   readinessOnly = false,
+  timePicker = false,
+  range,
 }: {
   readinessOnly?: boolean;
+  timePicker?: boolean;
+  range?: PeriodFilters;
   selection: Selection;
   instances: Instance[];
   disabled: boolean;
@@ -36,20 +42,57 @@ export function Filters({
   const [draft, setDraft] = useState<Selection>(selection);
   useEffect(() => setDraft(selection), [selection, readinessOnly]);
   const [error, setError] = useState('');
+  const picker = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (!timePicker) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (picker.current && event.target instanceof Node && !picker.current.contains(event.target)) {
+        picker.current.open = false;
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && picker.current?.open) {
+        picker.current.open = false;
+        picker.current.querySelector('summary')?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [timePicker]);
+  const periods = [
+    ['15', '최근 15분'], ['60', '최근 1시간'],
+    ['360', '최근 6시간'], ['1440', '최근 24시간'],
+  ];
+  const rangeText = range ? `${dateTime(range.from)} — ${dateTime(range.to)}` : '조회 중…';
+  function openPicker() {
+    if (!picker.current?.open) return;
+    setError('');
+    setDraft({
+      ...selection,
+      from: range ? localInput(Date.parse(range.from)) : selection.from,
+      to: range ? localInput(Date.parse(range.to)) : selection.to,
+    });
+  }
   const update = (value: Partial<Selection>) => setDraft((current) => ({ ...current, ...value }));
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  function apply(value: Selection) {
     try {
-      if (!readinessOnly) selectionFilters(draft);
+      if (!readinessOnly) selectionFilters(value);
       setError('');
-      onChange(
-        readinessOnly
-          ? { ...selection, instanceId: draft.instanceId, source: draft.source }
-          : { ...draft },
-      );
+      onChange(readinessOnly
+        ? { ...selection, instanceId: value.instanceId, source: value.source }
+        : { ...value });
+      if (picker.current) picker.current.open = false;
     } catch (error) {
       setError(error instanceof Error ? error.message : '기간을 확인하세요.');
     }
+  }
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    apply(picker.current?.open ? { ...draft, period: 'custom' } : draft);
   }
   return (
     <form className="panel filters" onSubmit={submit}>
@@ -71,6 +114,50 @@ export function Filters({
             ))}
           </select>
         </label>
+        {timePicker ? (
+          <div className="telemetry-time-control">
+            <span className="time-control-label">조회 기간</span>
+            <details className="time-picker" ref={picker} onToggle={openPicker}>
+              <summary
+                aria-label="조회 기간 변경"
+                aria-disabled={disabled}
+                onClick={(event) => { if (disabled) event.preventDefault(); }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                {selection.period === 'custom' ? '직접 지정한 기간' : periods.find(([value]) => value === selection.period)?.[1]}
+                <span aria-hidden="true">⌄</span>
+              </summary>
+              <div className="time-picker-content">
+                <div className="quick-time-ranges">
+                  <strong>빠른 선택</strong>
+                  {periods.map(([period, label]) => (
+                    <button type="button" key={period} aria-pressed={selection.period === period}
+                      onClick={() => apply({ ...selection, period })}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="absolute-time-range">
+                  <strong>날짜·시간 직접 지정</strong>
+                  <label>
+                    시작 시각
+                    <input aria-label="시작 시각" type="datetime-local" step="any" value={draft.from}
+                      onChange={(e) => update({ period: 'custom', from: e.target.value })} />
+                  </label>
+                  <label>
+                    종료 시각
+                    <input aria-label="종료 시각" type="datetime-local" step="any" value={draft.to}
+                      onChange={(e) => update({ period: 'custom', to: e.target.value })} />
+                  </label>
+                  <span className="time-zone">{Intl.DateTimeFormat().resolvedOptions().timeZone} · 최대 31일</span>
+                  <button className="primary" type="button" onClick={() => apply({ ...draft, period: 'custom' })}>이 기간 조회</button>
+                  {error && <p role="alert" className="error-text">{error}</p>}
+                </div>
+              </div>
+            </details>
+            <span className="applied-time-range">{rangeText}</span>
+          </div>
+        ) : (
         <label hidden={readinessOnly}>
           조회 기간
           <select
@@ -85,6 +172,7 @@ export function Filters({
             <option value="custom">시점 직접 선택</option>
           </select>
         </label>
+        )}
         <label hidden={readinessOnly}>
           이벤트 유형
           <select
@@ -144,7 +232,7 @@ export function Filters({
             onChange={(e) => update({ policyName: e.target.value || undefined })}
           />
         </label>
-        {!readinessOnly && draft.period === 'custom' && (
+        {!readinessOnly && !timePicker && draft.period === 'custom' && (
           <>
             <label>
               시작 · 로컬 시각
@@ -174,7 +262,7 @@ export function Filters({
           필터 적용
         </button>
       </fieldset>
-      {error && (
+      {error && (!timePicker || !picker.current?.open) && (
         <p role="alert" className="error-text">
           {error}
         </p>
