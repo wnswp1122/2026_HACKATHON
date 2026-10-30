@@ -1,8 +1,8 @@
-# LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼
+# Server Watch · 서버 보안 관찰과 사고 대응
 
 React·TypeScript·Vite 기반 프론트다. **현재 후속 계약은 기준 커밋 `d960d3f`의 [Tetragon 5화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3f/docs/tetragon-screen-plan.md)**이며 [선행 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4)를 따른다. 이 워크트리의 오래된 `docs/saas-parallel-development.md`와 충돌하면 새 원격 계획이 우선한다. 공통 docs나 다른 담당 코드는 수정·병합하지 않는다.
 
-다섯 화면의 프론트 구현과 독립 검증을 실제 수집·정규화·PostgreSQL·AI 모듈 전체 통합 완료로 해석하지 않는다. sample/mock과 실제 live를 구분한다.
+기존 다섯 관찰 화면과 사건 화면의 독립 검증을 실제 수집·정규화·PostgreSQL·AI 모듈 전체 통합 완료로 해석하지 않는다. sample/mock과 실제 live를 구분한다.
 
 ## 실행
 
@@ -31,16 +31,25 @@ Vite는 `http://127.0.0.1:5173`에서 실행하고 포트가 겹치면 실패한
 | 경로 | 화면 | 연결·동작 |
 |---|---|---|
 | `/overview` | 보안 개요 | 전체 관찰/정책 일치/live/sample 집계, 네트워크 관찰 지구본, 설정 위치·위치 미확인 목록, 추이·최근 이벤트 |
+| `/incidents` | 보안 사고 | 서버가 구성한 사건 목록, 우측 상세 분석·타임라인·원본 로그·대응 상태·체크리스트·메모 |
 | `/replay` | 관찰 활동 리플레이 | 서버가 저장한 고정 집합, 발생 시각 순 재생·일시정지·1/4/16x·시점 이동, 레인·원본 상세 이동 |
 | `/readiness` | 수집·정책 준비 점검 | 서버·단일 source로 상태 보고 조회. ready/warning/error/unknown/stale·사유·관찰/수신 시각·센서/정책 목록 |
 | `/telemetry` | 텔레메트리 탐색기 | 수신 건수/분(버킷 평균), 시간 구간 적용, 서버·유형·프로세스·정책·출처 필터, 서버별 표·페이지 목록·별도 원본 상세 |
 | `/servers` | 서버 보안 대시보드 | 서버별 관찰/정책 일치 수, 유형 분포·추이·프로세스 부모/관찰 통신 관계·초점 탐색 |
 
-`navigation.ts`는 다섯 경로의 History 탐색·뒤로/앞으로·직접 진입을 다룬다. `/`와 예전 `#overview`는 `/overview`, `#events`는 `/telemetry`, `#analysis`는 `/overview`의 안전 분석 영역으로 안내한다. Vite의 SPA fallback으로 직접 URL 새로고침이 가능하다. 개요의 최근 이벤트나 텔레메트리 목록을 선택하면 현재 화면 오른쪽에 상세 사이드바가 열리고 선택 행이 강조된다. `?event=UUID`로 직접 진입할 수 있으며 닫기·Esc·브라우저 뒤로가 동작한다. 원본 JSON은 별도 탭에서 텍스트로 표시한다. 모르는 경로에는 개요 이동을 제공한다.
+`navigation.ts`는 여섯 경로의 History 탐색·뒤로/앞으로·직접 진입을 다룬다. `/`와 예전 `#overview`는 `/overview`, `#events`는 `/telemetry`, `#analysis`는 `/overview`의 안전 분석 영역으로 안내한다. Vite의 SPA fallback으로 직접 URL 새로고침이 가능하다. 개요의 최근 이벤트나 텔레메트리 목록을 선택하면 기존 이벤트 상세 사이드바가 열린다. 보안 사고 목록의 사건 선택은 `?incident=ID`와 우측 사건 패널을 사용한다. 닫기·Esc·브라우저 뒤로가 동작한다. 원본 JSON은 텍스트로 표시한다.
 
-현재 API는 개별 **이벤트 조회**를 제공한다. 사건 상관 분석, 사건별 AI 요약, 처리 상태·체크리스트·메모 저장 계약은 없으므로 사이드바에 가상 결과나 저장 버튼을 표시하지 않는다. 사이드바의 확인 항목은 운영자 참고 문구이며 조치를 자동 실행하지 않는다.
+현재 실제 백엔드는 개별 **이벤트 조회**를 제공하며 사건 API는 아직 없다. `/incidents` 화면은 별도 제안 계약에 연결한다. 기존 이벤트를 브라우저에서 사건으로 묶거나 위험도를 생성하지 않는다. 독립 mock의 세 사건은 모두 `DEMO`이며 실제 수집·모델 분석이 아니다. 기존 이벤트 상세 사이드바는 관찰 정보만 표시한다. 어느 화면도 서버 조치를 자동 실행하지 않는다.
 
-`src/screens/`의 화면과 읽기 hook, `src/events/`의 필터·목록·상세·집계 차트, `src/analysis/`의 안전 캡처 흐름을 분리했다. 공통 API 경로는 `src/api.ts`, DTO와 allowlist는 `src/types.ts`에 있다. 프레임워크나 외부 서비스를 새로 추가하지 않았다.
+### 사건 API 제안 계약
+
+`src/incidents/api.ts`에서 공통 모델로 정규화한다. `GET /api/incidents`는 `{items: Incident[]}`, `GET /api/incidents/{id}`는 사건과 연결 이벤트·분석·대응 기록을 반환한다. `POST /api/incidents/{id}/analyze`는 분석이 포함된 사건을 반환하고, `PATCH /api/incidents/{id}`는 `{status, checklist, memo}`를 받아 저장된 사건을 반환한다. 정확한 DTO 필드와 상태값, 권한·동시 수정 규칙은 백엔드 담당과 확인해야 한다. API가 없으면 화면에 조회 오류를 표시하며 Demo 데이터를 제품 모드에 자동 주입하지 않는다. OpenAI 키는 프론트에 두지 않고 분석 요청은 백엔드만 호출한다.
+
+Demo 실행은 `frontend`에서 `npm run mock`을 실행하고, 다른 터미널에서 `VITE_API_PROXY_TARGET=http://127.0.0.1:18004 VITE_DATA_LABEL='Demo' npm run dev`를 실행한다(Windows PowerShell에서는 `$env:VITE_API_PROXY_TARGET='http://127.0.0.1:18004'` 형식). `/overview`의 사건 링크 또는 `/incidents` 메뉴에서 3개 사례를 확인한다. 변경한 상태·체크리스트·메모는 ignored `.local/mock/store.json`에 저장되고 `/__mock/reset`으로 초기화된다. Demo 설명은 시연용 고정 텍스트다.
+
+2026-10-31 Windows 로컬 검증: 격리된 의존성 설치 사본에서 타입 검사·빌드를 통과했다. 브라우저에서 Demo 사건 3건 조회, 사건 선택, 타임라인·원본 JSON 펼치기, 상태·체크리스트·메모 저장 후 개요의 상태 갱신과 사건 재진입을 확인했다. 1440px 데스크톱에서 표와 우측 패널 동시 표시, 좁은 화면에서 겹침 패널을 확인했다. 실제 FastAPI 사건 API는 미구현이므로 통합 검증하지 않았다.
+
+`src/screens/`의 화면과 읽기 hook, `src/events/`의 필터·목록·상세·집계 차트, `src/analysis/`의 안전 캡처 흐름, `src/incidents/`의 사건 API·화면을 분리했다. 공통 API 경로는 `src/api.ts`, DTO와 allowlist는 `src/types.ts`에 있다. 프레임워크나 외부 서비스를 새로 추가하지 않았다.
 
 ## 조회·표현 경계
 
@@ -151,7 +160,7 @@ curl -s -X POST http://127.0.0.1:18004/__mock/reports
 
 ## PR #11 디자인 통합
 
-기존 5개 화면과 SaaS API·스냅샷/PNG 분석 흐름을 유지하고 PR #11의 카드·색상·타이포그래피와 3D 지구본 표현을 적용했다. 사건 관리·localStorage Demo·별도 WebSocket·가상 공격 시나리오는 포함하지 않는다.
+기존 5개 화면과 SaaS API·스냅샷/PNG 분석 흐름을 유지하고 PR #11의 카드·색상·타이포그래피와 3D 지구본 표현을 적용했다. 당시 PR에는 사건 관리·localStorage Demo·별도 WebSocket·가상 공격 시나리오가 포함되지 않았다. 현재 사건 화면의 시연 자료는 별도 mock 서버에 저장한다.
 
 개요의 3D 지구본은 기존 `GET /api/network` 응답을 사용한다. `location`은 관찰 IP, `serverLocation`은 서버 설정 위치이며 양쪽 좌표가 있을 때만 관계선을 그린다. 좌표가 없으면 추정하지 않고 위치 미확인 목록에 남긴다. 회전/확대와 자동 회전 중지를 지원하고, WebGL 불가 시 목록으로 확인할 수 있다. 국가 경계·참조 구현의 고지는 [THREAT_MAP_NOTICE.md](THREAT_MAP_NOTICE.md)에 보존했다.
 

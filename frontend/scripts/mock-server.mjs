@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
+import { demoIncidents } from './mock-incidents.mjs';
 
 const dir = resolve(import.meta.dirname, '../.local/mock');
 await mkdir(dir, { recursive: true });
@@ -24,6 +25,7 @@ let controls = {
   truncate: false,
 };
 store.replays ||= {};
+store.incidents ||= demoIncidents();
 store.statusAt ||= new Date().toISOString();
 let stats = { snapshotPosts: 0, imagePuts: 0, analysisPosts: 0, requests: [] };
 const persist = () => writeFile(`${dir}/store.json`, JSON.stringify(store));
@@ -211,6 +213,7 @@ http
           images: {},
           analyses: {},
           replays: {},
+          incidents: demoIncidents(),
           statusAt: new Date().toISOString(),
         };
         controls = { failRead: false, delayMs: 0, ai: 'success', failUpload: false };
@@ -238,6 +241,7 @@ http
           '/api/graph',
           '/api/servers',
           '/api/readiness',
+          '/api/incidents',
         ].includes(path)
       )
         throw { status: 503, code: 'STORAGE_UNAVAILABLE' };
@@ -245,6 +249,35 @@ http
         store.events = Array.from({ length: 2505 }, (_, i) => event(i));
         await persist();
         return send(res, 200, { sampleCount: store.events.length });
+      }
+      if (path === '/api/incidents' && method === 'GET') {
+        return send(res, 200, { items: store.incidents.map(({ events, ...incident }) => incident) });
+      }
+      const incidentMatch = /^\/api\/incidents\/([^/]+)(?:\/(analyze))?$/.exec(path);
+      if (incidentMatch) {
+        const incident = store.incidents.find((item) => item.id === decodeURIComponent(incidentMatch[1]));
+        if (!incident) throw { status: 404, code: 'NOT_FOUND' };
+        if (method === 'GET' && !incidentMatch[2]) return send(res, 200, incident);
+        if (method === 'POST' && incidentMatch[2] === 'analyze') return send(res, 200, incident);
+        if (method === 'PATCH' && !incidentMatch[2]) {
+          const input = json(await body(req));
+          if (!['unconfirmed', 'investigating', 'resolved', 'benign'].includes(input.status) ||
+            typeof input.memo !== 'string' || input.memo.length > 5000 || !Array.isArray(input.checklist) ||
+            input.checklist.length !== incident.checklist.length ||
+            input.checklist.some((step, index) => step.id !== incident.checklist[index].id ||
+              step.label !== incident.checklist[index].label || typeof step.done !== 'boolean'))
+            throw { status: 422, code: 'VALIDATION_ERROR' };
+          const changes = [];
+          if (input.status !== incident.status) changes.push(`처리 상태: ${{ unconfirmed: '미확인', investigating: '조사 중', resolved: '조치 완료', benign: '정상 작업 / 오탐' }[input.status]}`);
+          if (input.memo !== incident.memo) changes.push('관리자 메모 변경');
+          if (input.checklist.some((step, index) => step.done !== incident.checklist[index].done)) changes.push('확인 항목 변경');
+          incident.status = input.status;
+          incident.memo = input.memo;
+          incident.checklist = input.checklist;
+          if (changes.length) incident.history.unshift({ at: new Date().toISOString(), text: changes.join(' · ') });
+          await persist();
+          return send(res, 200, incident);
+        }
       }
       if (path === '/api/servers' && method === 'GET') {
         const f = filters(Object.fromEntries(url.searchParams)),

@@ -25,7 +25,7 @@ export class ApiError extends Error {
   }
 }
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const timeout = AbortSignal.timeout(path.endsWith('/analysis') ? 120_000 : 15_000);
+  const timeout = AbortSignal.timeout(path.endsWith('/analysis') || path.endsWith('/analyze') ? 120_000 : 15_000);
   const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
   let response: Response;
   try {
