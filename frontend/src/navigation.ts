@@ -4,7 +4,7 @@ export const routes = [
   { path: '/incidents', label: '보안 사고', node: '319:2' },
   { path: '/servers', label: '서버 보안 대시보드', node: '387:1158' },
   { path: '/telemetry', label: '텔레메트리 탐색기', node: '387:777' },
-  { path: '/replay', label: '관찰 활동 리플레이', node: '387:215' },
+  { path: '/replay', label: '위험 전후 조사', node: '387:215' },
   { path: '/readiness', label: '수집·정책 준비 점검', node: '387:462' },
 ] as const;
 function currentPath() {

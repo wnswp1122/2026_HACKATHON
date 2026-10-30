@@ -5,6 +5,7 @@ import {
   eventTypes,
   selectionFilters,
   typeLabels,
+  statusLabels,
   type Selection,
   type EventType,
   type Status,
@@ -204,12 +205,13 @@ export function Filters({
               경고 상태
               <select
                 aria-label="경고 상태"
+            className={draft.status ? `status-${draft.status}` : undefined}
                 value={draft.status || ''}
                 onChange={(e) => update({ status: (e.target.value as Status) || undefined })}
               >
                 <option value="">전체 상태</option>
-                <option value="attention">주의</option>
-                <option value="observed">관찰됨</option>
+                <option value="attention">{statusLabels.attention}</option>
+                <option value="observed">{statusLabels.observed}</option>
               </select>
             </label>
             <label>

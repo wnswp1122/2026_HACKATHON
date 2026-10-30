@@ -217,3 +217,10 @@ core의 갱신된 schema.sql에 sensor_reports/replays가 있고 `settings.allow
 source=sample로 생성한 신규 이벤트가 정상 경로 검증의 입력이다. 검증 범위는 독립 data 모듈과 실제 PostgreSQL이다. **미검증:** Tetragon 네트워크 실측/정규화 활성화, 실제 상태 전송→core 수신, core 공통 앱과의 실행 통합, 5화면/위치·리플레이 UI·PNG·AI 전체 연결. 일부 소스가 구현됐다는 사실이나 여기의 sample 실행을 전체 통합 완료로 보고하지 않는다.
 
 추가로 확인한 공식 자료: [PostgreSQL JSON 연산](https://www.postgresql.org/docs/17/functions-json.html), [Python 3.12 ipaddress](https://docs.python.org/3.12/library/ipaddress.html), [psycopg cursor_factory](https://www.psycopg.org/psycopg3/docs/advanced/cursors.html). 런타임 버전은 초기 검증과 같은 requirements.lock을 재사용했다.
+
+
+### 네트워크 연결별 위험 집계
+
+`GET /api/network`의 각 연결 항목은 `attentionCount`를 추가로 반환한다. 같은 연결 집합에서 `status=attention`인 이벤트 수이며 `0 <= attentionCount <= count`다. 기존 상태·기간·출처 필터가 적용된 범위에서 집계하고, `count`·위치 미등록 수·200개 연결 상한은 유지한다. 프론트는 위험이 하나라도 포함된 연결의 IP·선을 빨강, 위험이 없는 연결을 파랑으로 표시한다. 위치 없는 IP를 임의 좌표에 표시하지 않는다.
+
+대용량 네트워크에서 `items`는 200개 연결 제한을 유지한다. `countries`(`countryCode`, `count`, `attentionCount`)와 `unknownCountryCount`는 제한 전 전체 필터 범위를 집계한다. 국가 정보는 명시적 위치 설정만 사용한다.

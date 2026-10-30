@@ -1,4 +1,4 @@
-import { dateTime, number, typeLabels, type EventPage } from '../types';
+import { statusLabels, dateTime, number, typeLabels, type EventPage } from '../types';
 export function EventTable({
   events,
   loading,
@@ -49,7 +49,7 @@ export function EventTable({
                 </td>
                 <td>
                   <span className={`badge ${e.status}`}>
-                    {e.status === 'attention' ? '주의' : '관찰됨'}
+                    {statusLabels[e.status]}
                   </span>
                 </td>
                 <td>

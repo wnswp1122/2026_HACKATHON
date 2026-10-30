@@ -102,7 +102,7 @@ Tetragon 담당은 버전·커널·정책명·훅·원본 필드 경로·타입�
 
 | API | 입력 | 응답·책임 |
 |---|---|---|
-| GET /api/network | 기존 공통 필터 | `{generatedAt,totalNetworkEvents,items,unmappedCount,truncated,limit:200}`. items는 관찰 연결별 `{instanceId,execId,network,count,location,serverLocation}`. count 내림차순 후 결정적 키 순으로 최대 200개. unmappedCount는 전체 범위에서 위치 없는 네트워크 이벤트 수 |
+| GET /api/network | 기존 공통 필터 | `{generatedAt,totalNetworkEvents,items,countries,unknownCountryCount,unmappedCount,truncated,limit:200}`. items는 관찰 연결별 `{instanceId,execId,network,count,attentionCount,location,serverLocation}`. count 내림차순 후 결정적 키 순으로 최대 200개. unmappedCount는 전체 범위에서 위치 없는 네트워크 이벤트 수 |
 | GET /api/graph | 기존 공통 필터 | `{generatedAt,nodes,edges,truncated,nodeLimit:200,edgeLimit:500}`. 노드는 `{id,kind,label}`(server/process/ip/file), 간선은 `{source,target,kind,count}`(parent/observed). 둘 다 결정적 ID 순으로 제한, 존재하지 않는 노드를 가리키는 간선 제외 |
 | GET /api/servers | 기존 공통 필터 | `{generatedAt,items}`. items는 `{instanceId,total,attention,byType,lastReceivedAt}`. 전체 필터 범위 집계, instanceId 오름차순. health 판정은 포함하지 않음 |
 | GET /api/readiness | instanceId 선택, source 필수 live/sample | `{generatedAt,staleAfterSeconds:90,items}`. items는 `{instanceId,state,reason,observedAt,receivedAt,report}`. state는 ready/warning/error/unknown/stale, report는 저장된 상태 payload 또는 null |

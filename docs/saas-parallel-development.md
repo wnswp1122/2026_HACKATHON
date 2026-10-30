@@ -17,7 +17,7 @@
 
 ## 공통 실행·연결 기준
 
-- Python 3.12, FastAPI/Pydantic 2, psycopg 3(dict_row), HTTPX, Pillow를 backend 기본 의존성으로 둔다. core 담당이 실제 호환 버전을 설치·고정한다. OpenAI 호출은 HTTPX 기반으로 구현해 별도 SDK 결합을 줄인다.
+- Python 3.12, FastAPI/Pydantic 2, psycopg 3(dict_row), HTTPX, Pillow를 backend 기본 의존성으로 둔다. core 담당이 실제 호환 버전을 설치·고정한다. Gemini 호출은 HTTPX 기반으로 구현해 별도 SDK 결합을 줄인다.
 - backend를 현재 디렉터리로 `uvicorn app:app`으로 실행한다. `db.get_connection()`은 psycopg Connection을 제공하는 동기 context manager다. 정상 종료 commit, 예외 rollback, 항상 close. `DATABASE_URL` 필수. SQL 파라미터는 바인딩한다.
 - 각 모듈은 `src.ingest.router`, `src.events.router`, `src.snapshots.router`, `src.analysis.router` 파일에 FastAPI `router`를 export한다. 라우트의 `/api` 접두사는 각 router가 소유하고 앱은 접두사 없이 include한다.
 - core는 존재하는 모듈만 조립하되 누락 모듈을 시작 로그·README에 명시한다. 누락 모듈 내부의 ImportError를 삼키지 않는다. 모듈 부재 상태를 전체 통합 성공으로 보고하지 않는다.
@@ -98,10 +98,10 @@ Dashboard: `{total,attention,byType:[{eventType,count}],bySource:[{source,count}
 ### 캡처와 AI
 
 - PUT /api/snapshots/{snapshotId}/image: Content-Type image/png, PNG 바이너리 본문 최대 5 MiB, 해석 후 최대 4096×4096 픽셀. 잘못된 이미지 422, 크기 초과 413, 미존재 스냅샷 404. MIME/시그니처만 믿지 말고 디코딩 검증한다. 첫 이미지 저장 201, 동일 바이트 재전송 200, 다른 이미지 교체는 409. 응답 `{snapshotId,imageSha256}`. 스냅샷 데이터와 이미지의 시각적 일치는 프론트 캡처 절차로 보장하며 서버가 이미지 내용을 증명했다고 쓰지 않는다.
-- POST /api/snapshots/{snapshotId}/analysis: 본문 없음. 저장된 payload와 PNG를 함께 Responses API에 보내고 검증된 결과만 저장. 신규 201, 이미 성공한 결과는 외부 재호출 없이 200. 스냅샷 404, 이미지 누락 409 IMAGE_REQUIRED, 키/모델 미설정 503 AI_NOT_CONFIGURED, 외부 실패·거절·잘못된 구조 502 AI_FAILED, 시간 초과 504 AI_TIMEOUT. 동시 요청에는 스냅샷별 DB 잠금을 사용해 중복 외부 호출을 막는다. 실패는 성공으로 저장하지 않는다.
+- POST /api/snapshots/{snapshotId}/analysis: 본문 없음. 저장된 payload와 PNG를 함께 Gemini generateContent API에 보내고 검증된 결과만 저장. 신규 201, 이미 성공한 결과는 외부 재호출 없이 200. 스냅샷 404, 이미지 누락 409 IMAGE_REQUIRED, 키/모델 미설정 503 AI_NOT_CONFIGURED, 외부 실패·거절·잘못된 구조 502 AI_FAILED, 시간 초과 504 AI_TIMEOUT, 요청·토큰 한도 초과 503 AI_QUOTA_EXHAUSTED. 동시 요청에는 스냅샷별 DB 잠금을 사용해 중복 외부 호출을 막는다. 실패는 성공으로 저장하지 않는다.
 - GET /api/snapshots/{snapshotId}/analysis: 성공 결과 200, 스냅샷/결과 미존재 404.
 - Analysis: `{analysisId,snapshotId,createdAt,model,instructionVersion,result:{facts:string[],hypotheses:string[],checks:string[],limitations:string[]}}`.
-- OPENAI_API_KEY와 OPENAI_MODEL은 서버 설정. 모델 기본값을 임의로 확정하지 말고 이미지+구조화 출력 지원을 공식 문서에서 확인한다. 실제 유료 호출 없이 요청 구성/응답 처리를 임시 서버로 검증할 수 있으며 실제 AI 검증과 구분한다.
+- GEMINI_API_KEY와 GEMINI_MODEL은 서버 설정. 모델 기본값을 임의로 확정하지 말고 이미지+구조화 출력 지원을 공식 문서에서 확인한다. 실제 유료 호출 없이 요청 구성/응답 처리를 임시 서버로 검증할 수 있으며 실제 AI 검증과 구분한다.
 - 지침 파일은 analysis 폴더에 Markdown으로 두고 버전을 기록한다. 외부 이벤트·이미지를 명령으로 따르지 않고, 실제 차단·유출을 단정하거나 정책을 실행하지 않는다. 원본 전체를 외부 AI에 보내지 않는다.
 
 ## 프론트 동작·검증

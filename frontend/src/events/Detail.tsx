@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from '../api';
-import { dateTime, typeLabels, type Event } from '../types';
+import { dateTime, statusLabels, typeLabels, type Event } from '../types';
 import './detail.css';
 
 type Tab = 'overview' | 'observed' | 'raw';
@@ -45,7 +45,7 @@ export function Detail({ id, onClose }: { id: string; onClose: () => void }) {
   return <aside className="event-drawer" aria-labelledby="event-drawer-title">
     <div className="event-drawer-top"><span>관찰 이벤트 상세</span><button ref={closeButton} type="button" onClick={onClose} aria-label="상세 닫기">×</button></div>
     <div className="event-drawer-head">
-      <div className="event-drawer-tags">{event && <><span className={`badge ${event.source}`}>{event.source === 'sample' ? 'SAMPLE · 예시/재생' : 'LIVE · 현재 수집'}</span><span className={`badge ${event.status}`}>{event.status === 'attention' ? '정책 일치' : '관찰됨'}</span></>}</div>
+      <div className="event-drawer-tags">{event && <><span className={`badge ${event.source}`}>{event.source === 'sample' ? 'SAMPLE · 예시/재생' : 'LIVE · 현재 수집'}</span><span className={`badge ${event.status}`}>{statusLabels[event.status]}</span></>}</div>
       <h2 id="event-drawer-title">{event ? typeLabels[event.eventType] : '이벤트 상세'}</h2>
       <p>{event ? `${event.instanceId} · 수신 ${dateTime(event.receivedAt)}` : id}</p>
     </div>
