@@ -1,13 +1,26 @@
-# 이벤트 전송 모듈
+# 클라이언트 이벤트 전송기 개발 지침
 
-## 목표
-Tetragon에서 실제로 출력한 이벤트를 백엔드에 전달한다.
+사용자 담당. JSONL 원본을 [데이터 계약](../docs/api-contract.md)에 맞춰 SaaS에 전송한다. HTTPX·환경변수 검증·--check-config 진입점·Dockerfile을 준비했다. follow/replay와 실제 전송은 아직 미구현이다.
 
-## 구현
-- JSON 파일 또는 gRPC 중 시연 환경에서 검증된 방식을 하나 선택해 이벤트를 읽는다.
-- 시연에 필요한 이벤트를 선택하고 원본과 인스턴스 식별자를 백엔드 `POST /api/events`로 전송한다. 요청 형식은 실제 출력 확인 후 백엔드와 합의한다.
-- 전송 실패를 로그로 남긴다. 초기 범위에는 재전송과 유실 복구가 없다.
-- 컨테이너에서 실행한다면 백엔드가 접근 가능한 주소와 로그 접근 권한을 확인한다.
+## 소유 범위
 
-## 완료 조건
-실제 Tetragon 이벤트 한 건이 백엔드에 수신된다. 아직 구현되지 않았다. Python 표준 라이브러리 또는 공용 가상환경의 HTTP 클라이언트를 사용할 수 있다.
+main.py, requirements.txt, 필요한 설정 예시·검증 자료를 event-forwarder/ 안에 작성한다. SaaS 수신 서버·프론트·공통 문서는 구현하거나 변경하지 않는다.
+
+## 구현 기준
+
+- 환경: EVENTS_URL, INSTANCE_ID, INGEST_TOKEN, TETRAGON_LOG_PATH. 실제 토큰을 출력·커밋하지 않는다.
+- --follow 또는 --replay PATH 중 하나만 받는다. 계약의 줄 처리·sample/live·회전 종료 규칙을 그대로 따른다.
+- UUID messageId, schemaVersion=1 봉투를 만들고 원본 JSON 값을 변환하지 않는다.
+- 인증 헤더, 200/201 ACK 확인, 동일 ID 재시도와 종료/실패 처리는 계약 한 곳을 기준으로 구현한다.
+- HTTPX Client 하나로 순차 전송한다. 무제한 큐·동시 전송·영속 spool은 만들지 않는다.
+- 성공·중복 ACK·잘못된 입력·최종 전송 실패 개수를 구분해 출력한다. 원본 전체와 토큰은 로그에서 제외한다.
+
+## 독립 검증
+
+[예시 원본](../docs/fixtures/sample-events.jsonl)을 replay한다. 실제 SaaS가 없으면 임시 HTTP 수신기로 요청 봉투·인증 헤더·재시도 ID 일치·200/201·4xx·5xx·timeout·불명확 ACK를 직접 확인한다. 이를 SaaS 실제 연동으로 기록하지 않는다.
+
+follow는 시작 전 줄 제외, 미완결 줄 보관, 새 완결 줄 전송, 회전/축소 종료를 확인한다. 네트워크 실패·재시작 시 무손실 전달을 보장하지 않는 한계를 README에 유지한다. [클라이언트 지침](../docs/client-development.md)을 따른다.
+
+## 준비된 기반
+
+settings.py는 URL/인스턴스/토큰/입력 경로를 검증하며 토큰 repr을 숨긴다. main.py의 --check-config는 요청 구성을 확인하지만 HTTP 요청을 보내지 않는다. requirements.lock으로 독립 가상환경을 재현한다. 환경변수의 실제 값은 Git에 넣지 않는다. proxy 환경변수 자동 사용과 HTTP redirect는 기본 비활성이다.

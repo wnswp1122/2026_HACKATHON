@@ -1,0 +1,49 @@
+# Tested with Lima 2.2.1 on Apple Silicon; dedicated client VM.
+minimumLimaVersion: 2.0.0
+vmType: vz
+arch: aarch64
+cpus: 4
+memory: 6GiB
+disk: 30GiB
+images:
+  - location: https://cloud-images.ubuntu.com/releases/noble/release-20260926/ubuntu-24.04-server-cloudimg-arm64.img
+    arch: aarch64
+    digest: sha256:1d6bffe64b848468ac97f821d369a4846d983de1800ccf6b5ec8853e85cefc55
+mounts: []
+containerd:
+  system: false
+  user: false
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y docker.io python3-venv curl sqlite3
+      usermod -aG docker "{{.User}}"
+      mkdir -p /etc/systemd/system/docker.socket.d
+      printf '[Socket]\nSocketUser={{.User}}\n' > /etc/systemd/system/docker.socket.d/override.conf
+      systemctl daemon-reload
+      systemctl stop docker.service docker.socket
+      systemctl enable --now docker.socket docker.service
+  - mode: user
+    script: |
+      #!/bin/sh
+      set -eu
+      mkdir -p "$HOME/2026-hack-runtime/tetragon"
+probes:
+  - script: |
+      #!/bin/sh
+      set -eu
+      test -r /sys/kernel/btf/vmlinux
+      sudo docker info >/dev/null
+    hint: Check Linux BTF and Docker service before Tetragon development.
+portForwards:
+  - guestSocket: /var/run/docker.sock
+    hostSocket: "{{.Dir}}/sock/docker.sock"
+  - guestPort: 8081
+    hostIP: 127.0.0.1
+    hostPort: 8081
+  - guestPortRange: [1, 65535]
+    ignore: true
