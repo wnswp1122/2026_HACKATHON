@@ -140,3 +140,11 @@ curl -s -X POST http://127.0.0.1:18004/__mock/reports
 기존 `3044276`/`84ad71e`의 단일 화면 단계에서는 설치·ci·타입·빌드, sample 필터·503·경합, 1100×1146 PNG·민감 필드 제외·AI 실패·같은 PNG 재시도, mock 재기동 보존, 데스크톱/모바일 문구를 확인했다. 이 과거 기록을 신규 다섯 화면 검증이나 실제 통합으로 바꾸어 표현하지 않는다.
 
 공식 문서: [Vite](https://vite.dev/guide/) · [서버 proxy](https://vite.dev/config/server-options) · [React effect](https://react.dev/reference/react/useEffect) · [Recharts](https://recharts.github.io/en-US/api/Area/) · [html-to-image](https://github.com/bubkoo/html-to-image) · [TypeScript](https://www.typescriptlang.org/tsconfig/) · [Fontsource](https://fontsource.org/docs/getting-started/install). 기존 설치 버전을 유지했다.
+
+## PR #11 디자인 통합
+
+기존 5개 화면과 SaaS API·스냅샷/PNG 분석 흐름을 유지하고 PR #11의 카드·색상·타이포그래피와 3D 지구본 표현을 적용했다. 사건 관리·localStorage Demo·별도 WebSocket·가상 공격 시나리오는 포함하지 않는다.
+
+개요의 3D 지구본은 기존 `GET /api/network` 응답을 사용한다. `location`은 관찰 IP, `serverLocation`은 서버 설정 위치이며 양쪽 좌표가 있을 때만 관계선을 그린다. 좌표가 없으면 추정하지 않고 위치 미확인 목록에 남긴다. 회전/확대와 자동 회전 중지를 지원하고, WebGL 불가 시 목록으로 확인할 수 있다. 국가 경계·참조 구현의 고지는 [THREAT_MAP_NOTICE.md](THREAT_MAP_NOTICE.md)에 보존했다.
+
+위치는 서버의 `DASHBOARD_LOCATIONS_FILE` 설정을 따른다. 임의 해외 위치, 위험도, 접속 성공, 공격 방향을 만들지 않는다. 기존 source 필터와 조회 범위·상한을 그대로 사용한다. 3D 라이브러리는 개요에서 지연 로딩한다. 분석 캡처는 기존 안전 영역을 유지하며 3D 캔버스를 캡처하지 않는다.

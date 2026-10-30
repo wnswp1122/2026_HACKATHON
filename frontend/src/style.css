@@ -1767,3 +1767,5 @@ main,
   .screen-stats .metric strong { font-size: 28px; }
   h1 { font-size: 21px; }
 }
+
+.network-globe-3d { width: 100%; height: 460px; overflow: hidden; position: relative; }
