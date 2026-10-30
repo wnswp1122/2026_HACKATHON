@@ -1,11 +1,11 @@
 import { serverName } from './types';
 import { useState } from 'react';
 import { routes } from './navigation';
-import type { Instance, Selection, Source } from './types';
+import type { Selection, Source } from './types';
 
 export function MonitoringSetup({ selection, instances, loading, error, onRetry, onStart, onCancel }: {
   selection: Selection;
-  instances: Instance[];
+  instances: string[];
   loading: boolean;
   error: string;
   onRetry: () => void;
@@ -27,12 +27,13 @@ export function MonitoringSetup({ selection, instances, loading, error, onRetry,
           <label htmlFor="setup-instance">인스턴스 <span>· 모니터링 대상 서버</span></label>
           <select id="setup-instance" value={instanceId} onChange={(event) => setInstanceId(event.target.value)}>
             <option value="">전체 인스턴스</option>
-            {instanceId && !instances.some((item) => item.instanceId === instanceId) && <option value={instanceId}>{serverName(instanceId)}</option>}
-            {instances.map((item) => <option key={item.instanceId}>{serverName(item.instanceId)}</option>)}
+            {instanceId && !instances.includes(instanceId) && <option value={instanceId}>{serverName(instanceId)}</option>}
+            {instances.map((id) => <option key={id} value={id}>{serverName(id)}</option>)}
           </select>
           {error ? <div role="alert" className="error-text">서버 목록 조회 실패 · {error} <button type="button" onClick={onRetry}>다시 조회</button></div>
             : loading ? <p role="status">서버 목록을 불러오는 중…</p>
-            : !instances.length && <p className="setup-description">아직 등록된 서버가 없습니다. 전체 인스턴스로 시작한 뒤 이벤트 수신 여부를 확인하세요.</p>}
+            : !instances.length && <p className="setup-description">선택할 서버가 없습니다. 서버의 모니터링 대상 설정을 확인한 뒤 다시 조회하세요. 전체 인스턴스로 시작하면 수신되는 이벤트를 확인할 수 있습니다.</p>}
+          <p className="setup-description">서버 목록에는 상태 보고나 이벤트가 아직 도착하지 않은 모니터링 대상도 포함됩니다. 수집 여부는 시작 후 준비 점검에서 확인하세요.</p>
           <fieldset className="setup-sources">
             <legend>조회할 데이터</legend>
             <label className={source === 'live' ? 'selected' : ''}>

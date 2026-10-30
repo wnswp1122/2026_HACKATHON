@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { ResourceStatus, Stats } from './Common';
 import { useResource } from './useResource';
+import { readinessDescription } from './CollectionStatus';
 const labels: Record<ReadinessItem['state'], string> = {
   ready: '수집 준비 확인',
   warning: '주의 필요',
@@ -90,7 +91,7 @@ export function ReadinessScreen({
                         <td>
                           <span className={`badge ${item.state}`}>{labels[item.state]}</span>
                         </td>
-                        <td className="wrap-cell">{item.reason || '추가 사유 없음'}</td>
+                        <td className="wrap-cell">{readinessDescription(item)}{item.reason && <small>{item.reason}</small>}</td>
                       </tr>,
                       <tr key={`${item.instanceId}-collector`}>
                         <td>상태 수집기</td>
@@ -123,7 +124,7 @@ export function ReadinessScreen({
                   </tbody>
                 </table>
               </div>
-              {!data.items.length && <p className="empty">허용 인스턴스의 상태 항목이 없습니다.</p>}
+              {!data.items.length && <p className="empty">모니터링 대상 서버가 없습니다. 서버 설정이나 선택한 대상을 확인하세요.</p>}
             </article>
             <div className="stack">
               {(['sensors', 'policies'] as const).map((key) => (
