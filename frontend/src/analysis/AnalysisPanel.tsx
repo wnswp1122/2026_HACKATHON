@@ -1,16 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ApiError, api, describeError } from '../api';
-import { dateTime, selectionFilters, type Analysis, type Selection, type Snapshot } from '../types';
+import {
+  dateTime,
+  selectionFilters,
+  type Analysis,
+  type Selection,
+  type Snapshot,
+  type Filters,
+  safeSnapshotFilters,
+} from '../types';
 import { SnapshotView } from './SnapshotView';
 
 type Props = {
   selection: Selection;
+  filters?: Filters;
   onBusy: (busy: boolean) => void;
   onResult: (result: Analysis | undefined) => void;
 };
 const storedId = () => new URLSearchParams(window.location.search).get('snapshot');
-export default function AnalysisPanel({ selection, onBusy, onResult }: Props) {
+export default function AnalysisPanel({
+  selection,
+  filters: contextFilters,
+  onBusy,
+  onResult,
+}: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot>();
   const [analysis, setAnalysis] = useState<Analysis>();
   const [step, setStep] = useState('');
@@ -68,6 +82,7 @@ export default function AnalysisPanel({ selection, onBusy, onResult }: Props) {
       setError('스냅샷 UUID를 확인하세요.');
       return;
     }
+    id = id.toLowerCase();
     if (!begin('저장한 스냅샷 불러오는 중…')) return;
     const current = ++generation.current;
     const controller = new AbortController();
@@ -106,7 +121,7 @@ export default function AnalysisPanel({ selection, onBusy, onResult }: Props) {
     try {
       let value = existing;
       if (!value) {
-        const filters = selectionFilters(selection);
+        const filters = safeSnapshotFilters(contextFilters || selectionFilters(selection));
         value = await api.snapshot(filters);
         if (!alive()) return;
         flushSync(() => {
@@ -162,6 +177,8 @@ export default function AnalysisPanel({ selection, onBusy, onResult }: Props) {
       <p className="notice">
         현재 적용한 기간·필터로 고정합니다. 안전한 이벤트 요약·전체 집계·기간·출처와 아래 고정 영역
         PNG를 서버를 통해 외부 AI에 전송합니다. 원본·명령 인자·프로세스 경로는 제외합니다.
+        프로세스·정책 필터는 스냅샷에서 제외됩니다. IP·파일·관계 그래프·준비 상태·위치 정보는 분석에
+        포함되지 않습니다.
       </p>
       <form
         className="restore"

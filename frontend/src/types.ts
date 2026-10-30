@@ -16,7 +16,12 @@ export type Filters = {
   status?: Status;
   source?: Source;
 };
-export type Selection = Omit<Filters, 'from' | 'to'> & { period: string; from: string; to: string };
+export type PeriodFilters = Filters & { processExecId?: string; policyName?: string };
+export type Selection = Omit<PeriodFilters, 'from' | 'to'> & {
+  period: string;
+  from: string;
+  to: string;
+};
 export type SafeEvent = {
   eventId: string;
   instanceId: string;
@@ -35,7 +40,10 @@ export type Event = SafeEvent & {
     uid: number | null;
     binary: string | null;
     parentBinary: string | null;
+    parentExecId?: string | null;
   };
+  file?: { path: string; operation: string | null } | null;
+  network?: Network | null;
   target: string | null;
   policyName: string | null;
   reportedAction: string | null;
@@ -84,7 +92,7 @@ export const sourceLabel = (source?: Source) =>
     : source === 'live'
       ? 'live · 현재 수집'
       : 'live + sample';
-export function selectionFilters(selection: Selection, now = Date.now()): Filters {
+export function selectionFilters(selection: Selection, now = Date.now()): PeriodFilters {
   const { period, from, to, ...optional } = selection;
   const end = period === 'custom' ? new Date(to).getTime() : now;
   const start = period === 'custom' ? new Date(from).getTime() : end - Number(period) * 60_000;
@@ -96,5 +104,106 @@ export function selectionFilters(selection: Selection, now = Date.now()): Filter
   ) {
     throw new Error('시작은 종료보다 빨라야 하며 조회 기간은 최대 31일입니다.');
   }
+  if (
+    optional.processExecId !== undefined &&
+    (!optional.processExecId.trim() || optional.processExecId.length > 1024)
+  )
+    throw new Error('프로세스 execId는 1~1024자입니다.');
+  if (
+    optional.policyName !== undefined &&
+    (!optional.policyName.trim() || optional.policyName.length > 100)
+  )
+    throw new Error('정책명은 1~100자입니다.');
   return { ...optional, from: new Date(start).toISOString(), to: new Date(end).toISOString() };
+}
+
+export type Network = {
+  sourceIp: string | null;
+  sourcePort: number | null;
+  destinationIp: string | null;
+  destinationPort: number | null;
+  protocol: string | null;
+  operation: string | null;
+};
+export type Location = {
+  countryCode: string | null;
+  latitude: number;
+  longitude: number;
+  source: 'configured' | 'geoip';
+};
+export type NetworkItem = {
+  instanceId: string;
+  execId: string | null;
+  network: Network | null;
+  count: number;
+  location: Location | null;
+  serverLocation: Location | null;
+};
+export type NetworkResponse = {
+  generatedAt: string;
+  totalNetworkEvents: number;
+  items: NetworkItem[];
+  unmappedCount: number;
+  truncated: boolean;
+  limit: number;
+};
+export type Graph = {
+  generatedAt: string;
+  nodes: { id: string; kind: 'server' | 'process' | 'ip' | 'file'; label: string }[];
+  edges: { source: string; target: string; kind: 'parent' | 'observed'; count: number }[];
+  truncated: boolean;
+  nodeLimit: number;
+  edgeLimit: number;
+};
+export type ServerSummary = {
+  instanceId: string;
+  total: number;
+  attention: number;
+  byType: Dashboard['byType'];
+  lastReceivedAt: string | null;
+};
+export type Servers = { generatedAt: string; items: ServerSummary[] };
+export type ComponentState = 'enabled' | 'disabled' | 'error' | 'unknown';
+export type SensorReport = {
+  observedAt: string;
+  collector: { state: 'ok' | 'error' | 'unknown'; errorCode: string | null };
+  tetragon: {
+    reachable: boolean | null;
+    version: string | null;
+    sensors: { name: string; state: ComponentState; error: string | null }[];
+    policies: { name: string; state: ComponentState; error: string | null }[];
+  };
+};
+export type ReadinessItem = {
+  instanceId: string;
+  state: 'ready' | 'warning' | 'error' | 'unknown' | 'stale';
+  reason: string | null;
+  observedAt: string | null;
+  receivedAt: string | null;
+  report: SensorReport | null;
+};
+export type Readiness = { generatedAt: string; staleAfterSeconds: number; items: ReadinessItem[] };
+export type Replay = {
+  replayId: string;
+  createdAt: string;
+  filters: PeriodFilters;
+  timeBasis: 'occurredAt';
+  events: Event[];
+  total: number;
+  undatedCount: number;
+  eventLimit: number;
+  truncated: boolean;
+};
+// Snapshot 허용 목록은 확장하지 않습니다. 추가 필터와 네트워크 정보는 제외합니다.
+export function safeSnapshotFilters(value: Filters): Filters {
+  return Object.fromEntries(
+    Object.entries({
+      from: value.from,
+      to: value.to,
+      instanceId: value.instanceId,
+      eventType: value.eventType,
+      status: value.status,
+      source: value.source,
+    }).filter(([, v]) => v !== undefined),
+  ) as Filters;
 }

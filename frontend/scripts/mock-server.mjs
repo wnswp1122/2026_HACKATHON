@@ -15,7 +15,16 @@ try {
   if (error.code !== 'ENOENT') throw error;
   store = { events: [], snapshots: {}, images: {}, analyses: {} };
 }
-let controls = { failRead: false, delayMs: 0, ai: 'success', failUpload: false };
+let controls = {
+  failRead: false,
+  delayMs: 0,
+  ai: 'success',
+  failUpload: false,
+  readiness: 'mixed',
+  truncate: false,
+};
+store.replays ||= {};
+store.statusAt ||= new Date().toISOString();
 let stats = { snapshotPosts: 0, imagePuts: 0, analysisPosts: 0, requests: [] };
 const persist = () => writeFile(`${dir}/store.json`, JSON.stringify(store));
 const event = (i) => ({
@@ -28,8 +37,21 @@ const event = (i) => ({
   status: i % 6 ? 'observed' : 'attention',
   outcome: 'unknown',
   nodeName: 'sample-only-node',
+  file: i % 5 === 2 ? { path: '/tmp/sample-only.txt', operation: 'read' } : null,
+  network:
+    i % 5 === 3
+      ? {
+          sourceIp: '192.0.2.5',
+          sourcePort: 32000 + i,
+          destinationIp: i % 3 ? '192.0.2.44' : '203.0.113.10',
+          destinationPort: 443,
+          protocol: 'TCP',
+          operation: 'connect',
+        }
+      : null,
   process: {
-    execId: `sample-${i}`,
+    execId: `sample-process-${Math.floor(i / 5)}`,
+    parentExecId: i < 5 ? 'sample-unobserved-parent' : `sample-process-${Math.floor(i / 5) - 1}`,
     pid: 1000 + i,
     uid: 1000,
     binary: '/usr/bin/sample',
@@ -57,7 +79,16 @@ const safe = ({
 function filters(value) {
   const f = Object.fromEntries(
     Object.entries(value).filter(([k]) =>
-      ['from', 'to', 'instanceId', 'eventType', 'status', 'source'].includes(k),
+      [
+        'from',
+        'to',
+        'instanceId',
+        'eventType',
+        'status',
+        'source',
+        'processExecId',
+        'policyName',
+      ].includes(k),
     ),
   );
   const duration = Date.parse(f.to) - Date.parse(f.from);
@@ -69,7 +100,13 @@ function filters(value) {
     !/(Z|[+-]\d\d:\d\d)$/.test(f.to) ||
     (f.eventType && !types.includes(f.eventType)) ||
     (f.status && !['observed', 'attention'].includes(f.status)) ||
-    (f.source && !['live', 'sample'].includes(f.source))
+    (f.source && !['live', 'sample'].includes(f.source)) ||
+    (f.processExecId !== undefined &&
+      (typeof f.processExecId !== 'string' ||
+        !f.processExecId.trim() ||
+        f.processExecId.length > 1024)) ||
+    (f.policyName !== undefined &&
+      (typeof f.policyName !== 'string' || !f.policyName.trim() || f.policyName.length > 100))
   )
     throw { status: 422, code: 'VALIDATION_ERROR' };
   return f;
@@ -80,6 +117,8 @@ function select(f) {
       (e) =>
         e.receivedAt >= f.from &&
         e.receivedAt < f.to &&
+        (!f.processExecId || e.process.execId === f.processExecId) &&
+        (!f.policyName || e.policyName === f.policyName) &&
         ['instanceId', 'eventType', 'status', 'source'].every(
           (key) => !f[key] || e[key] === f[key],
         ),
@@ -154,12 +193,25 @@ http
         await persist();
         return send(res, 201, safe(e));
       }
+      if (path === '/__mock/reports' && method === 'POST') {
+        store.statusAt = new Date().toISOString();
+        controls.readiness = 'mixed';
+        await persist();
+        return send(res, 200, { sampleReports: true });
+      }
+      if (path === '/__mock/undated' && method === 'POST') {
+        store.events = store.events.map((e) => ({ ...e, occurredAt: null }));
+        await persist();
+        return send(res, 200, { sampleUndated: true });
+      }
       if (path === '/__mock/reset' && method === 'POST') {
         store = {
           events: Array.from({ length: 137 }, (_, i) => event(i)),
           snapshots: {},
           images: {},
           analyses: {},
+          replays: {},
+          statusAt: new Date().toISOString(),
         };
         controls = { failRead: false, delayMs: 0, ai: 'success', failUpload: false };
         stats = { snapshotPosts: 0, imagePuts: 0, analysisPosts: 0, requests: [] };
@@ -178,9 +230,271 @@ http
       if (
         controls.failRead &&
         method === 'GET' &&
-        ['/api/instances', '/api/events', '/api/dashboard'].includes(path)
+        [
+          '/api/instances',
+          '/api/events',
+          '/api/dashboard',
+          '/api/network',
+          '/api/graph',
+          '/api/servers',
+          '/api/readiness',
+        ].includes(path)
       )
         throw { status: 503, code: 'STORAGE_UNAVAILABLE' };
+      if (path === '/__mock/many' && method === 'POST') {
+        store.events = Array.from({ length: 2505 }, (_, i) => event(i));
+        await persist();
+        return send(res, 200, { sampleCount: store.events.length });
+      }
+      if (path === '/api/servers' && method === 'GET') {
+        const f = filters(Object.fromEntries(url.searchParams)),
+          events = select(f);
+        return send(res, 200, {
+          generatedAt: new Date().toISOString(),
+          items: [...new Set(events.map((e) => e.instanceId))].sort().map((instanceId) => {
+            const items = events.filter((e) => e.instanceId === instanceId);
+            return {
+              instanceId,
+              total: items.length,
+              attention: items.filter((e) => e.status === 'attention').length,
+              byType: dashboard(f, items).byType,
+              lastReceivedAt: store.events
+                .filter((e) => e.instanceId === instanceId)
+                .map((e) => e.receivedAt)
+                .sort()
+                .at(-1),
+            };
+          }),
+        });
+      }
+      if (path === '/api/network' && method === 'GET') {
+        const events = select(filters(Object.fromEntries(url.searchParams))).filter(
+          (e) => e.eventType === 'NETWORK' && e.network,
+        );
+        const groups = new Map();
+        for (const e of events) {
+          const key = JSON.stringify([e.instanceId, e.process.execId, e.network]);
+          if (!groups.has(key))
+            groups.set(key, {
+              instanceId: e.instanceId,
+              execId: e.process.execId,
+              network: e.network,
+              count: 0,
+              location:
+                e.network.destinationIp === '203.0.113.10'
+                  ? {
+                      countryCode: 'FR',
+                      latitude: 48.8566,
+                      longitude: 2.3522,
+                      source: 'configured',
+                    }
+                  : null,
+              serverLocation: {
+                countryCode: 'KR',
+                latitude: 37.5665,
+                longitude: 126.978,
+                source: 'configured',
+              },
+            });
+          groups.get(key).count++;
+        }
+        const items = [...groups.entries()]
+          .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+          .map(([, item]) => item);
+        return send(res, 200, {
+          generatedAt: new Date().toISOString(),
+          totalNetworkEvents: events.length,
+          items: items.slice(0, 200),
+          unmappedCount: events.filter((e) => e.network.destinationIp !== '203.0.113.10').length,
+          truncated: items.length > 200 || controls.truncate,
+          limit: 200,
+        });
+      }
+      if (path === '/api/graph' && method === 'GET') {
+        const events = select(filters(Object.fromEntries(url.searchParams))),
+          nodes = new Map(),
+          edges = new Map();
+        const addNode = (id, kind, label) => {
+          nodes.set(id, { id, kind, label });
+          return id;
+        };
+        const addEdge = (source, target, kind) => {
+          const key = JSON.stringify([source, target, kind]);
+          if (!edges.has(key)) edges.set(key, { source, target, kind, count: 0 });
+          edges.get(key).count++;
+        };
+        for (const e of events) {
+          const server = addNode('s:' + e.instanceId, 'server', e.instanceId);
+          const exec = e.process.execId;
+          const process = exec
+            ? addNode('p:' + e.instanceId + ':' + exec, 'process', e.process.binary || exec)
+            : null;
+          if (process) {
+            addEdge(server, process, 'observed');
+            const parent = e.process.parentExecId;
+            if (parent) {
+              const observed = events.some(
+                (v) => v.instanceId === e.instanceId && v.process.execId === parent,
+              );
+              const id = 'p:' + e.instanceId + ':' + parent;
+              if (!nodes.has(id))
+                addNode(id, 'process', observed ? parent : '미관찰 부모 · ' + parent);
+              addEdge(id, process, 'parent');
+            }
+          }
+          if (e.file)
+            addEdge(
+              process || server,
+              addNode('f:' + e.instanceId + ':' + e.file.path, 'file', e.file.path),
+              'observed',
+            );
+          if (e.network) {
+            const ip = e.network.destinationIp || e.network.sourceIp;
+            if (ip) addEdge(process || server, addNode('ip:' + ip, 'ip', ip), 'observed');
+          }
+        }
+        const allNodes = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id)),
+          chosen = allNodes.slice(0, 200),
+          allowed = new Set(chosen.map((n) => n.id));
+        const allEdges = [...edges.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([, e]) => e)
+          .filter((e) => allowed.has(e.source) && allowed.has(e.target));
+        return send(res, 200, {
+          generatedAt: new Date().toISOString(),
+          nodes: chosen,
+          edges: allEdges.slice(0, 500),
+          truncated: allNodes.length > 200 || allEdges.length > 500 || controls.truncate,
+          nodeLimit: 200,
+          edgeLimit: 500,
+        });
+      }
+      if (path === '/api/readiness' && method === 'GET') {
+        const source = url.searchParams.get('source');
+        if (!['live', 'sample'].includes(source)) throw { status: 422, code: 'VALIDATION_ERROR' };
+        const states = ['ready', 'warning', 'error', 'unknown', 'stale', 'unknown', 'unknown'];
+        const names = [
+          'sample-board-01',
+          'sample-worker-02',
+          'sample-policy-error',
+          'sample-unreported',
+          'sample-old-report',
+          'sample-clock-skew',
+          'sample-query-failed',
+        ];
+        const items = names
+          .filter(
+            (name) =>
+              !url.searchParams.get('instanceId') || name === url.searchParams.get('instanceId'),
+          )
+          .map((instanceId) => {
+            const index = names.indexOf(instanceId),
+              scenario = controls.readiness;
+            if (source === 'live' || index === 3 || scenario === 'missing')
+              return {
+                instanceId,
+                state: 'unknown',
+                reason: 'REPORT_NOT_RECEIVED',
+                observedAt: null,
+                receivedAt: null,
+                report: null,
+              };
+            let observedAt = store.statusAt,
+              receivedAt = store.statusAt,
+              state = states[index],
+              reason = null;
+            if (index === 4 || scenario === 'stale') {
+              observedAt = new Date(Date.now() - 120000).toISOString();
+              receivedAt = observedAt;
+              state = 'stale';
+              reason = 'REPORT_STALE';
+            }
+            if (index === 5 || scenario === 'clock') {
+              observedAt = new Date(Date.now() + 60000).toISOString();
+              state = 'unknown';
+              reason = 'CLOCK_SKEW';
+            }
+            const sensors = [{ name: 'sample-exec-sensor', state: 'enabled', error: null }],
+              policies = [
+                {
+                  name: 'sample-file-policy',
+                  state:
+                    index === 1 || scenario === 'disabled'
+                      ? 'disabled'
+                      : index === 2 || scenario === 'error'
+                        ? 'error'
+                        : 'enabled',
+                  error: index === 2 || scenario === 'error' ? 'sample policy load error' : null,
+                },
+              ];
+            const report = {
+              observedAt,
+              collector: { state: 'ok', errorCode: null },
+              tetragon: {
+                reachable: index === 6 || scenario === 'unreachable' ? false : true,
+                version: 'sample-only',
+                sensors: scenario === 'no-sensors' ? [] : sensors,
+                policies: scenario === 'no-policy' ? [] : policies,
+              },
+            };
+            if (state !== 'stale' && reason !== 'CLOCK_SKEW') {
+              if (Date.now() - Date.parse(receivedAt) > 90000) {
+                state = 'stale';
+                reason = 'REPORT_STALE';
+              } else if (
+                report.tetragon.reachable === false ||
+                policies.some((p) => p.state === 'error')
+              ) {
+                state = 'error';
+                reason = 'TETRAGON_OR_POLICY_ERROR';
+              } else if (!report.tetragon.sensors.length) {
+                state = 'unknown';
+                reason = 'SENSORS_UNKNOWN';
+              } else if (!report.tetragon.policies.length) {
+                state = 'warning';
+                reason = 'POLICY_NOT_CONFIGURED';
+              } else if (policies.some((p) => p.state === 'disabled')) {
+                state = 'warning';
+                reason = 'POLICY_DISABLED';
+              }
+            }
+            return { instanceId, state, reason, observedAt, receivedAt, report };
+          });
+        return send(res, 200, {
+          generatedAt: new Date().toISOString(),
+          staleAfterSeconds: 90,
+          items,
+        });
+      }
+      if (path === '/api/replays' && method === 'POST') {
+        const f = filters(json(await body(req))),
+          events = select(f),
+          dated = events
+            .filter((e) => e.occurredAt)
+            .sort(
+              (a, b) =>
+                a.occurredAt.localeCompare(b.occurredAt) || a.eventId.localeCompare(b.eventId),
+            );
+        const replay = {
+          replayId: randomUUID(),
+          createdAt: new Date().toISOString(),
+          filters: f,
+          timeBasis: 'occurredAt',
+          events: dated.slice(0, 2000),
+          total: events.length,
+          undatedCount: events.length - dated.length,
+          eventLimit: 2000,
+          truncated: dated.length > 2000,
+        };
+        store.replays[replay.replayId] = replay;
+        await persist();
+        return send(res, 201, replay);
+      }
+      if (/^\/api\/replays\/[^/]+$/.test(path) && method === 'GET') {
+        const replay = store.replays[path.split('/')[3]];
+        if (!replay) throw { status: 404, code: 'NOT_FOUND' };
+        return send(res, 200, replay);
+      }
       if (path === '/api/instances' && method === 'GET')
         return send(res, 200, {
           items: [...new Set(store.events.map((e) => e.instanceId))].sort().map((instanceId) => ({
@@ -234,8 +548,15 @@ http
         });
       }
       if (path === '/api/snapshots' && method === 'POST') {
+        const input = json(await body(req));
+        if (
+          Object.keys(input).some(
+            (key) => !['from', 'to', 'instanceId', 'eventType', 'status', 'source'].includes(key),
+          )
+        )
+          throw { status: 422, code: 'VALIDATION_ERROR' };
         stats.snapshotPosts++;
-        const f = filters(json(await body(req))),
+        const f = filters(input),
           items = select(f),
           id = randomUUID();
         const s = {

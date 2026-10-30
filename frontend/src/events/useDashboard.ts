@@ -4,23 +4,25 @@ import {
   selectionFilters,
   type Dashboard,
   type EventPage,
-  type Filters,
-  type Instance,
+  type PeriodFilters,
   type Selection,
 } from '../types';
 
 type Data = {
   dashboard: Dashboard;
   events: EventPage;
-  instances: Instance[];
-  filters: Filters;
+  filters: PeriodFilters;
   successAt: string;
 };
-export function useDashboard(selection: Selection, page: number, refresh: number) {
+export function useDashboard(selection: Selection, page: number, refresh: number, enabled = true) {
   const [data, setData] = useState<Data>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     let busy = false;
     const controller = new AbortController();
@@ -31,16 +33,14 @@ export function useDashboard(selection: Selection, page: number, refresh: number
       busy = true;
       try {
         const filters = selectionFilters(selection);
-        const [dashboard, events, instances] = await Promise.all([
+        const [dashboard, events] = await Promise.all([
           api.dashboard(filters, controller.signal),
           api.events(filters, page, controller.signal),
-          api.instances(controller.signal),
         ]);
         if (active) {
           setData({
             dashboard,
             events,
-            instances: instances.items,
             filters,
             successAt: new Date().toISOString(),
           });
@@ -60,6 +60,6 @@ export function useDashboard(selection: Selection, page: number, refresh: number
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [selection, page, refresh]);
+  }, [selection, page, refresh, enabled]);
   return { data, error, loading };
 }

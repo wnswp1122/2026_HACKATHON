@@ -1,4 +1,19 @@
-import type { Analysis, Dashboard, Event, EventPage, Filters, Instance, Snapshot } from './types';
+import type {
+  Analysis,
+  Dashboard,
+  Event,
+  EventPage,
+  Filters,
+  Instance,
+  Snapshot,
+  PeriodFilters,
+  NetworkResponse,
+  Graph,
+  Servers,
+  Readiness,
+  Replay,
+} from './types';
+import { safeSnapshotFilters } from './types';
 
 export class ApiError extends Error {
   constructor(
@@ -50,13 +65,32 @@ export const describeError = (error: unknown) =>
     : error instanceof Error
       ? error.message
       : '알 수 없는 오류입니다.';
-export const query = (filters: Filters) =>
+export const query = (filters: PeriodFilters) =>
   new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined));
 export const api = {
+  network: (filters: PeriodFilters, signal: AbortSignal) =>
+    request<NetworkResponse>(`/network?${query(filters)}`, { signal }),
+  graph: (filters: PeriodFilters, signal: AbortSignal) =>
+    request<Graph>(`/graph?${query(filters)}`, { signal }),
+  servers: (filters: PeriodFilters, signal: AbortSignal) =>
+    request<Servers>(`/servers?${query(filters)}`, { signal }),
+  readiness: (instanceId: string | undefined, source: 'live' | 'sample', signal: AbortSignal) =>
+    request<Readiness>(
+      `/readiness?${new URLSearchParams({ source, ...(instanceId ? { instanceId } : {}) })}`,
+      { signal },
+    ),
+  replay: (filters: PeriodFilters) =>
+    request<Replay>('/replays', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters),
+    }),
+  getReplay: (id: string, signal: AbortSignal) =>
+    request<Replay>(`/replays/${encodeURIComponent(id)}`, { signal }),
   instances: (signal: AbortSignal) => request<{ items: Instance[] }>('/instances', { signal }),
-  dashboard: (filters: Filters, signal: AbortSignal) =>
+  dashboard: (filters: PeriodFilters, signal: AbortSignal) =>
     request<Dashboard>(`/dashboard?${query(filters)}`, { signal }),
-  events: (filters: Filters, page: number, signal: AbortSignal) =>
+  events: (filters: PeriodFilters, page: number, signal: AbortSignal) =>
     request<EventPage>(`/events?${query(filters)}&page=${page}&pageSize=20`, { signal }),
   detail: (id: string, signal: AbortSignal) =>
     request<{ event: Event; rawEvent: object }>(`/events/${encodeURIComponent(id)}`, { signal }),
@@ -64,7 +98,7 @@ export const api = {
     request<Snapshot>('/snapshots', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(filters),
+      body: JSON.stringify(safeSnapshotFilters(filters)),
     }),
   getSnapshot: (id: string, signal: AbortSignal) =>
     request<Snapshot>(`/snapshots/${encodeURIComponent(id)}`, { signal }),

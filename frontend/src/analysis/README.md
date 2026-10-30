@@ -1,9 +1,11 @@
-# 고정 스냅샷·캡처·분석
+# 다섯 화면의 공통 안전 스냅샷·분석
 
-공통 [프론트 실행·검증 기록](../../README.md)과 [HTTP 계약](../../../docs/saas-parallel-development.md)을 따른다.
+기준은 **d960d3f**의 [5화면 후속 계약](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3f/docs/tetragon-screen-plan.md)이다. [실행·검증과 미검증 범위](../../README.md)를 따른다.
 
-`AnalysisPanel.tsx`가 스냅샷 생성/복원 → 고정 영역 렌더링 → PNG → 업로드 → 분석을 순서대로 수행한다. 작업 잠금과 세대 검사를 사용한다. `SnapshotView.tsx`는 받은 스냅샷만 렌더링하며 memo로 라이브 재렌더링과 분리한다. 폰트·레이아웃 준비와 PNG 디코딩/크기 검사는 `capture.ts`가 담당한다. 결과가 다른 snapshotId이면 사용하지 않는다.
+각 화면은 현재 조회 범위로 같은 분석 영역을 열고, 리플레이는 저장된 고정 필터를 전달한다. 화면마다 별도 AI/캡처 구현을 복제하지 않는다. `safeSnapshotFilters`와 API 경계는 기존 from/to/instanceId/eventType/status/source만 만든다. processExecId/policyName은 제거하고 제외 사실을 안내한다.
 
-1100px 고정 영역에 ID·기간·출처·전체 집계·저장 요약/화면 요약 생략 여부를 표시한다. 안전 요약은 최대 8건 표시하며 원본·인자·프로세스 경로·라이브 목록을 넣지 않는다. PNG는 1x 픽셀, 5 MiB 이하, 4096px 이하를 확인한다. 실패하면 텍스트 분석으로 대체하지 않는다. 같은 페이지의 재시도에는 같은 PNG Blob을 유지한다. URL의 ID로 서버 저장 payload와 성공 결과를 복원한다. 이미지 GET이 없으므로 새로고침 뒤 재캡처 이미지 충돌 가능성은 상위 README에 적었다.
+`AnalysisPanel.tsx`는 생성/복원 → 고정 영역 렌더링 → 폰트·레이아웃·차트 준비 → PNG → 같은 ID에 업로드 → 분석을 순서대로 수행한다. `SnapshotView.tsx`는 받은 안전 Snapshot만 memo로 렌더링한다. 새 Event의 file/network/process 필드를 넣지 않는다. 원본·경로·IP·execId·센서 상태·위치·그래프와 페이지 전체는 AI 입력/캡처 밖이다.
 
-2026-10-31 독립 sample mock + Chrome에서 실제 1100×1146 PNG 생성/다운로드/업로드, mock 분석 성공, 중복 클릭 1건 처리, 필터/신규 수신 후 고정 데이터 불변, 페이지 새로고침 후 복원, AI 미설정·실패·시간 초과, 동일 PNG 재시도, 캡처 실패/업로드 실패 시 AI 미호출, 0건 PNG, 모바일 내부 스크롤을 확인했다. mock 모델명은 `mock-no-model-called`이며 실제 모델 분석이 아니다. 실제 이미지 검증 모듈·PostgreSQL·Responses API와의 통합은 미검증이다.
+`capture.ts`는 1100px 동일 영역·1x 픽셀·5 MiB/4096px 제한·PNG 디코딩을 확인한다. 캡처/업로드 실패 시 AI를 호출하지 않고, 같은 페이지에서 재시도는 같은 PNG Blob을 사용한다. 생성/조회/업로드/분석의 ID가 섞이지 않게 확인한다. 요청 중 중복 클릭·필터 변경·화면 이동을 잠근다. URL 복원 뒤 이미지 재캡처 충돌 가능성은 상위 README에 적었다.
+
+독립 mock 분석의 모델명은 `mock-no-model-called`다. 실제 모델의 판단이라고 쓰지 않는다. UI 패널의 기본 설명은 분석 경계이며 디자인에 적힌 예시 IP/명령/센서 상태를 AI 근거로 생성하지 않는다. 실제 전체 통합·유료 모델 호출은 별도 검증이다.
