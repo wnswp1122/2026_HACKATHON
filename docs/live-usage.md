@@ -45,3 +45,5 @@ python3 scripts/live.py run --local --config /home/user/live.env
 ## 이번 확인
 
 전용 PostgreSQL schema와 API, 기존 Linux VM의 새 파일·네트워크 probe로 live 11건(FILE_ACCESS/NETWORK/PROCESS_EXEC/PROCESS_EXIT)을 수신했다. 별도 센서 보고와 dashboard 집계, replay 생성·동일 ID 복원을 확인했다. 같은 입력 중복 실행은 실패했고, 수정 후 원격 Ctrl+C 종료에서 두 전송기가 남지 않는 것을 확인했다. 실제 제공자 AI 성공·장기 운영·강제 종료/VM 단절 시 복구는 이번 검증 범위가 아니다.
+
+영속 전송 모드를 연결한 추가 검증에서 file probe를 수신한 뒤 전송기를 종료하고 network probe를 발생시켰다. 같은 저장 디렉터리로 재시작한 후 해당 발생 시각과 호스트 프로세스 식별자의 NETWORK 이벤트가 한 건 저장됐음을 확인했다. 최종 live 22건(파일4·네트워크2·실행8·종료8)이며 sample 가중치는 사용하지 않았다. SIGHUP 종료에서도 자식 전송기 잔존이 없었다. 이는 통신 성공·공격 차단·장기 무손실 보장과 별개의 수신/복구 검증이다.
