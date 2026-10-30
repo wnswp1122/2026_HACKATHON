@@ -1,6 +1,15 @@
 # 게시판 서버
 
+LiteSOC **AI 기반 서버 보안 모니터링·분석 플랫폼**의 시연용 사용자 서버다. 현재 후속 기준은 **`d960d3f`**의 [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md) ([PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4))이다. 오래된 로컬 docs나 saas-parallel-development.md와 충돌하면 이 계획을 따른다. 이 브랜치로 다른 담당의 코드를 merge/cherry-pick하지 않았다.
+
 FastAPI + SQLite 게시판 CRUD API다. `server.py`의 lifespan에서 테이블을 준비하고 `posts.py`가 입력 검증과 CRUD를 담당한다. `database.py`는 연결별 커밋·예외 시 롤백·연결 종료를 처리한다.
+
+## 5개 화면 계획에서 게시판의 연결 경계
+
+- 게시판 책임은 기존 CRUD 유지·안전한 시연·관찰 정책 적용 중 동작 확인이다. 5개 화면·센서 상태 전송·이벤트 정규화·AI는 각 담당이 구현한다. 게시판 HTTP 응답이나 SQLite 글을 SaaS 보안 이벤트로 전송하지 않는다.
+- `/health`는 게시판 DB 연결만 확인한다. Tetragon 도달 가능 여부·센서·정책 상태·서버 보안 정상의 근거로 사용하지 않는다. 준비 점검은 별도 `/api/sensor-status` 보고를 사용한다.
+- 이벤트 수신 v1 봉투와 AI 안전 Snapshot/캡처 allowlist를 유지한다. 게시판에 원격 셸 실행·인증 우회 API, probe, 보호 파일, 상태 수집 API를 추가하지 않는다. 새 공통 필드 요청은 없다.
+- 정책 소유자는 tetragon-runtime이다. 게시판 담당은 정책을 직접 적용·해제하지 않으며 `hack-demo`·`hack-tetragon`·그 볼륨을 중지/삭제/교체하지 않는다. 제어가 필요한 시연은 소유자와 검증 구간부터 맞춘다.
 
 ## API
 
@@ -98,6 +107,47 @@ limactl shell 2026-hack-client curl --fail --silent http://127.0.0.1:18081/posts
 
 최초 Mac → 컨테이너 18081 요청은 Connection refused였다. 서버 로그와 VM 내부 curl의 200을 확인하고, dev/lima.yaml의 8081 전용 전달 설정을 확인해 이후 컨테이너 요청은 VM 내부에서 수행했다.
 
-**미확인:** Tetragon 정책 적용 중 CRUD 유지, probe/보호 파일, 실제 보안 이벤트 수집·전송·SaaS·프론트 통합은 이번 게시판 검증에 포함하지 않았다. 공통 데이터 계약 변경은 필요하지 않다. 공통 문서의 health-only 상태 설명은 담당 외 범위라 수정하지 않았으며 통합 시 갱신이 필요하다.
+**이 최초 CRUD 구현 단계의 미확인:** Tetragon 정책 적용 중 CRUD 유지, probe/보호 파일, 실제 보안 이벤트 수집·전송·SaaS·프론트 통합. 이후 관찰 구간의 추가 확인은 아래 기록과 구분한다. 공통 문서의 health-only 상태 설명은 담당 외 범위라 수정하지 않았다.
+
+## 안전한 게시판 시연 순서
+
+1. Tetragon 담당에게 정책명·enabled 여부·실행 대상·검증 구간을 확인한다. 컨테이너 소유 label, 실제 mount namespace, `/openapi.json`을 조회해 포트와 구현을 구분한다. `/posts`가 없는 서버를 CRUD 성공으로 표시하지 않는다.
+2. 게시판 개발은 VM `127.0.0.1:18081`의 `hack-board-dev`를 사용한다. 생성 전에 기존 글 목록을 확인하고 `board-observe-<새 UUID>`처럼 이번 실행만의 표식을 제목에 쓴다. 실제 사용자/비밀 데이터를 넣지 않는다.
+3. POST 응답의 ID를 기록한 뒤 그 ID의 상세·PATCH·목록 포함을 확인한다. 빈 PATCH/공백 제목/길이 초과를 요청해 422와 원래 값 보존을 확인한다. 존재하지 않는 글의 응답은 404다.
+4. 삭제 직전 GET으로 기록한 ID와 UUID 제목이 모두 일치하는지 확인한다. 그 글만 DELETE하고 204·빈 본문·후속 GET 404를 확인한다. 목록 전체 삭제, DB 초기화, ID 범위 삭제는 하지 않는다. 생성 응답이 불명확하면 재생성/전체 삭제하지 말고 표식으로 목록을 조사한다.
+5. 기존 글의 값이 유지됐는지 확인한다. 전후 정책 상태와 양쪽 health를 기록하고 Tetragon 담당에게 검증 구간 종료를 알린다. 독립 볼륨/컨테이너를 재시작할 때에도 소유 자원만 다루며 공유 VM은 유지한다.
+
+소유·관찰 상태를 읽는 명령(정책 적용 명령이 아님):
+
+```sh
+board_docker_socket="unix://$HOME/.lima/2026-hack-client/sock/docker.sock"
+docker --host "$board_docker_socket" inspect hack-demo hack-board-dev hack-tetragon --format '{{.Name}} labels={{json .Config.Labels}} image={{.Config.Image}}'
+docker --host "$board_docker_socket" exec hack-tetragon tetra --server-address unix:///var/run/tetragon/tetragon.sock tracingpolicy list -o json
+docker --host "$board_docker_socket" exec hack-demo readlink /proc/self/ns/mnt
+docker --host "$board_docker_socket" exec hack-board-dev readlink /proc/self/ns/mnt
+limactl shell 2026-hack-client curl --fail --silent http://127.0.0.1:8081/openapi.json
+limactl shell 2026-hack-client curl --fail --silent http://127.0.0.1:18081/openapi.json
+```
+
+## d960d3f 후속: 관찰 구간의 실제 수동 확인
+
+2026-10-31 **04:37:01.614~04:37:02.316 KST**(UTC 2026-10-30 19:37:01.614~19:37:02.316)에 실행했다. Tetragon 담당이 기존 Orca 작업으로 관찰 구간을 제공했고, 위 CLI로 요청 전후 모두 `hack-demo-observe / TP_STATE_ENABLED / TP_MODE_MONITOR_ONLY`를 직접 확인했다. HTTP는 VM의 Python 표준 라이브러리 urllib로 일회성 요청을 보냈다. 요약 원본은 [observation-crud.json](evidence/observation-crud.json)에 저장했다. 자동 테스트/CI는 추가하지 않았다.
+
+| 실제 대상 | 확인 결과 | 해석 범위 |
+|---|---|---|
+| `hack-board-dev:18081` | health 200, POST 201, 상세/목록/PATCH 200, 빈 PATCH/null/공백/201자 제목/10001자 내용 422, 삭제 204·빈 본문, 삭제 후 404 | 관찰 정책이 enabled인 같은 VM에서 독립 게시판 CRUD 유지 |
+| `hack-demo:8081` | health 200, OpenAPI 경로는 `/health`만 존재, GET /posts 404 | 관찰 대상 컨테이너는 health-only. 같은 대상 컨테이너의 CRUD는 확인 불가 |
+| 생성·정리 | 이번 생성 ID 4, UUID 제목을 재확인한 뒤 해당 글만 삭제. 기존 글 1건의 전체 값 불변, 종료 후 목록도 1건 | 타인/기존 데이터와 DB/볼륨을 정리하지 않음 |
+| 컨테이너 경계 | 당시 hack-demo mount namespace `4026532395`, hack-board-dev `4026532323` | 서로 다른 namespace. 재기동 후 번호를 재조회하며 고정값으로 사용하지 않음 |
+
+이번 확인 중 정책·보호 파일·probe·타인 컨테이너를 변경하거나 새 네트워크 정책을 실행하지 않았다. Tetragon 담당에게 확인 완료와 구간 종료 가능 상태를 전달했다.
+
+## 조정 담당·다른 담당에게 전달할 사항
+
+- **확인한 파일 정책:** `hack-demo-observe`는 `/usr/local/bin/hack-demo-probe` AND 현재 hack-demo mount namespace AND `/tmp/hack-demo/protected.txt` AND `MAY_READ=4`에만 Post 관찰한다. 일반 웹 서버 Python과 SQLite 파일은 이 정책의 대상이 아니다. 게시판 글 내용·SQL·HTTP 요청 단위가 관찰됐다고 주장하지 않는다.
+- **공통 정규화 연결:** 알려진 정책/훅 `security_file_permission`에서 `process_kprobe.args[0].file_arg.path`, `args[1].int_arg=4`를 확인해야 파일 접근 근거로 쓸 수 있다. 새 필드 `file`/`network`/`process.parentExecId`와 정책별 원본 타입·매핑은 Tetragon 증거에 따라 core가 구현하며 게시판이 임의 생성하지 않는다. `reportedAction`을 성공 결과로 바꾸지 않고 outcome은 unknown을 유지한다.
+- **준비 중인 네트워크:** 담당이 알려준 이름은 `hack-demo-network`, 별도 net-probe binary + 같은 컨테이너 namespace + `127.0.0.1`의 8080/18080 connect에 Post만 적용할 계획이다. 이 게시판 검증 시점에는 live 미검증이다. 정확 binary/원본 필드·타입과 최종 매핑은 담당 완료 후 수령해야 한다. connect 관찰을 연결 성공·전송량·공격으로 해석하지 않는다.
+- **남은 연결 입력:** 같은 대상에서 CRUD 시연이 필요하면 Tetragon 소유자가 현재 CRUD 이미지와 기존 볼륨/probe mount를 맞춘 다음 재검증 구간을 제공해야 한다. 이 작업에서 hack-demo를 교체하거나 정책 대상을 넓히지 않는다. 독립 게시판의 정상 결과로 이 항목을 완료 처리하지 않는다.
+- **통합 미검증:** 실제 live 전송기→SaaS 저장→5개 화면, 준비 상태 전송/신선도, 고정 Replay·Snapshot·PNG·실제 AI는 이 작업에서 확인하지 않았다. 과거 실측을 재생하면 sample이며, 위 기록은 실제 HTTP 실행 결과이지 보안 이벤트 봉투나 전송 성공 증거가 아니다.
 
 공통 범위는 [클라이언트 지침](../docs/client-development.md), 환경은 [개발 환경](../docs/local-development.md), 통합 시나리오는 [수동 확인](../docs/manual-verification.md)을 따른다.
