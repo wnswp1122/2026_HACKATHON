@@ -1,6 +1,6 @@
 # AI 기반 서버 보안 모니터링·분석 플랫폼
 
-AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·이벤트/상태 수신·정규화와 조회·스냅샷·AI 모듈을 조립한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 아래 개별 워크트리 검증 기록과 최신 [전체 통합 기록](../worklog/integration-merge.md)을 구분한다.
+AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·이벤트/상태 수신·정규화와 조회·스냅샷·AI 모듈을 조립한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 아래 개별 워크트리 검증 기록, [전체 통합 기록](../worklog/integration-merge.md), 최신 [실제 게시판 live 검증](../docs/live-usage.md#실제-게시판으로-확인한-범위)을 구분한다.
 
 **현재 후속 계약 기준: `d960d3f` — [Tetragon 5개 화면 구현 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [선행 PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4).** 위 이전 docs와 충돌하면 이 새 계획을 우선한다. 원문 `/Users/junje/Projects/2026_hack/docs/tetragon-screen-plan.md` 전체와 saas-core 담당 행을 읽고 구현했다. LiteSOC는 시각 브랜드로 유지하며 이 브랜치에서는 UI/Figma를 수정하지 않는다.
 
@@ -103,7 +103,7 @@ PostgreSQL JSONB가 표현할 수 없는 NUL 문자·잘못된 Unicode surrogate
 - `node_name`, `process_exec`/`process_exit`의 process(exec_id/pid/uid/binary), parent(binary/exec_id)를 매핑한다. parent.exec_id만 process.parentExecId로 보존하며 PID나 binary로 관계를 추측하지 않는다. pid/uid는 실제 비음수 uint32 정수만 받으며 bool/문자열은 추정 변환하지 않는다.
 - `process_kprobe`는 아래 확인된 정책·훅·인자 타입이 함께 맞는 경우에만 FILE_ACCESS/NETWORK로 분류하고 나머지는 **OTHER**다. 공식 필드 policy_name/action의 문자열만 보존하고, 정책명과 allowlist가 정확히 일치할 때 attention과 reason을 설정한다. 숫자 action enum은 해석하지 않는다.
 - unknown/서로 충돌하는 process 이벤트 구조는 OTHER로 보존한다. arbitrary arguments는 공개 Event에 포함하지 않는다. 확인한 file/network만 target 표시 요약을 만들고 그 외는 null이며 outcome은 항상 unknown이다. 명령 인자의 경로·SIGKILL 보고를 파일 접근/차단 성공으로 바꾸지 않는다.
-- 파일·네트워크는 Tetragon 담당의 실측 증거로 제한 매핑한다. 알려진 IPv4 TCP connect 매핑을 live 수신에도 적용할 수 있으나 실제 전송기→SaaS live 통합은 미검증이다. 상세 매핑과 한계는 d960d3f 확장 기록을 참고한다.
+- 파일·네트워크는 확인한 정책·훅·인자 타입만 제한 매핑한다. 기존 probe 매핑에 실제 게시판 서비스 관찰을 추가했고 전송기→SaaS live 연결을 확인했다. 현재 서비스 매핑은 다음 절, 이전 probe 매핑과 검증 이력은 d960d3f 확장 기록을 참고한다.
 
 sample 전송은 환경을 로드한 backend 터미널에서 토큰을 인자로 노출하지 않고 실행한다.
 
@@ -126,6 +126,15 @@ PY
 ## 공식 참고 자료
 
 구현 중 공식 [FastAPI 오류 처리](https://fastapi.tiangolo.com/tutorial/handling-errors/), [Pydantic strict 모드](https://docs.pydantic.dev/latest/concepts/strict_mode/), [psycopg 트랜잭션](https://www.psycopg.org/psycopg3/docs/basic/transactions.html)·[JSON adaptation](https://www.psycopg.org/psycopg3/docs/basic/adapt.html#json-adaptation), [HTTPX](https://www.python-httpx.org/), [Pillow 설치](https://pillow.readthedocs.io/en/stable/installation/basic-installation.html), [PostgreSQL JSONB](https://www.postgresql.org/docs/17/datatype-json.html), [공식 PostgreSQL 이미지](https://hub.docker.com/_/postgres), [Tetragon gRPC 필드](https://tetragon.io/docs/reference/grpc-api/#processkprobe)·[v1.8.0 원본 스키마](https://github.com/cilium/tetragon/blob/v1.8.0/api/v1/tetragon/tetragon.proto)를 확인했다. 설치한 버전과 실행 결과는 아래 기록을 기준으로 한다.
+
+## 실제 게시판 서비스 이벤트 매핑
+
+기존 v1 수신 봉투·인증·중복 판정·DB 스키마는 유지한다. 아래 정책은 [Tetragon 서비스 관찰](../tetragon/README.md#실제-게시판-서비스-관찰)을 별도로 적용해야 생성된다.
+
+- `hack-demo-service-observe` + `security_file_permission`에서 `args[0].file_arg.path`가 비어 있지 않은 문자열이고 `args[1].int_arg`가 정수 4 또는 2이면 FILE_ACCESS로 분류한다. 각각 `file.operation=read` 또는 `write`, `target=path`다. 기존 `hack-demo-observe`/`hack-demo-enforce`는 정수 4만 허용하며 다른 mask는 계속 OTHER다. 권한 검사 관찰을 읽기·쓰기 성공으로 판정하지 않는다.
+- `hack-demo-service-network` + `tcp_connect`는 기존 `hack-demo-network`와 같은 IPv4 TCP 인자 검사를 거쳐 NETWORK/`operation=connect`로 매핑한다. IPv6·UDP 등 확인하지 않은 구조는 OTHER이며 연결 시도만으로 `outcome`을 바꾸지 않는다.
+
+실제 FastAPI 게시판에 CRUD를 수행해 생성한 파일 원본 276건을 전용 검증 DB의 `raw_event` 전체 값과 비교했고 각 원본이 정확히 한 번 저장됨을 확인했다. 전송기 중단과 수신 API 중단 이후 같은 spool·DB로 복구한 회차도 포함한다. 최종 280건의 유형별 수치, 화면·replay·장애 복구와 미검증 범위는 [실제 게시판 live 검증](../docs/live-usage.md#실제-게시판으로-확인한-범위)에 기록했다. 아래 sample 재생 이력과 구분한다.
 
 ## 2026-10-31 최초 수신기 검증 기록 (d960d3f 확장 전)
 

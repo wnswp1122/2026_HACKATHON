@@ -1,0 +1,20 @@
+# Outgoing TCP attempts from the board container; no destination assumption.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: hack-demo-service-network
+spec:
+  kprobes:
+  - call: tcp_connect
+    syscall: false
+    args:
+    - index: 0
+      type: sock
+    selectors:
+    - matchNamespaces:
+      - namespace: Mnt
+        operator: In
+        values:
+        - "__HACK_DEMO_MNT_NS__"
+      matchActions:
+      - action: Post

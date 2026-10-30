@@ -14,7 +14,8 @@ LABEL = f"io.2026-hack.owner={OWNER}"
 ROOT = Path.home() / "2026-hack-runtime/tetragon"
 SOURCE = Path(__file__).resolve().parent
 FILE_POLICIES = ("hack-demo-observe", "hack-demo-enforce")
-POLICIES = (*FILE_POLICIES, "hack-demo-network")
+SERVICE_POLICIES = ("hack-demo-service-observe", "hack-demo-service-network")
+POLICIES = (*FILE_POLICIES, "hack-demo-network", *SERVICE_POLICIES)
 HEALTH_CHECK = ["exec", "hack-demo", "python", "-c",
                 "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=1).read().decode())"]
 POLICY_CLI = ["exec", "hack-tetragon", "tetra", "--server-address",
@@ -169,7 +170,8 @@ def apply(mode: str) -> None:
         raise RuntimeError("namespace 템플릿 확인 실패")
     target = ROOT / "policies" / f"{mode}.yaml"
     target.write_text(text.replace("__HACK_DEMO_MNT_NS__", str(namespace)))
-    off(("hack-demo-network",) if mode == "network" else FILE_POLICIES)
+    off((f"hack-demo-{mode}",) if mode.startswith("service-") else
+        ("hack-demo-network",) if mode == "network" else FILE_POLICIES)
     tetra("add", f"/policies/{mode}.yaml")
     loaded = policy_list()
     if not any(p["name"] == f"hack-demo-{mode}" and p["state"] == "TP_STATE_ENABLED" for p in loaded):
@@ -180,7 +182,7 @@ def apply(mode: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["prepare", "probes", "start", "status", "observe", "enforce", "network", "network-off", "off", "probe", "network-probe", "network-probe-closed", "health", "stop"])
+    parser.add_argument("command", choices=["prepare", "probes", "start", "status", "observe", "enforce", "network", "service-observe", "service-network", "network-off", "service-off", "off", "probe", "network-probe", "network-probe-closed", "health", "stop"])
     args = parser.parse_args()
     if sys.platform != "linux":
         raise RuntimeError("준비된 2026-hack-client Linux VM 안에서 실행하세요")
@@ -192,8 +194,10 @@ def main() -> None:
         start()
     elif args.command == "status":
         tetra("list")
-    elif args.command in ("observe", "enforce", "network"):
+    elif args.command in ("observe", "enforce", "network", "service-observe", "service-network"):
         apply(args.command)
+    elif args.command == "service-off":
+        off(SERVICE_POLICIES)
     elif args.command == "network-off":
         off(("hack-demo-network",))
     elif args.command == "off":

@@ -1,0 +1,35 @@
+# Read/write observation for the running board container, never enforcement.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: hack-demo-service-observe
+spec:
+  kprobes:
+  - call: security_file_permission
+    syscall: false
+    args:
+    - index: 0
+      type: file
+    - index: 1
+      type: int
+    selectors:
+    - matchNamespaces:
+      - namespace: Mnt
+        operator: In
+        values:
+        - "__HACK_DEMO_MNT_NS__"
+      matchArgs:
+      - index: 0
+        operator: Equal
+        values:
+        - /data/board.sqlite3
+        - /data/board.sqlite3-wal
+        - /data/board.sqlite3-shm
+        - /data/board.sqlite3-journal
+      - index: 1
+        operator: Equal
+        values:
+        - "2"
+        - "4"
+      matchActions:
+      - action: Post
