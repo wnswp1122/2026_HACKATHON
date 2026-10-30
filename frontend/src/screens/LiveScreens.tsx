@@ -22,6 +22,7 @@ type Props = {
   refresh: number;
   live: ReturnType<typeof useDashboard>;
   onDetail: (id: string) => void;
+  selectedDetailId: string;
   onPage: (page: number) => void;
   onSelection: (selection: Selection) => void;
   onAnalyze: (filters?: PeriodFilters) => void;
@@ -97,7 +98,7 @@ export function Overview(props: Props) {
                 </div>
                 {data.events.items.slice(0, 6).map((event) => (
                   <button
-                    className="recent-event"
+                    className={`recent-event ${props.selectedDetailId === event.eventId ? 'selected-event' : ''}`}
                     key={event.eventId}
                     onClick={() => props.onDetail(event.eventId)}
                   >
@@ -158,6 +159,7 @@ export function Telemetry(props: Props) {
               loading={props.live.loading}
               onPage={props.onPage}
               onDetail={props.onDetail}
+              selectedId={props.selectedDetailId}
             />
           )}
         </div>

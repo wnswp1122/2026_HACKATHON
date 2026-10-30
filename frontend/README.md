@@ -30,7 +30,9 @@ Vite는 `http://127.0.0.1:5173`에서 실행하고 포트가 겹치면 실패한
 | `/telemetry` | 텔레메트리 탐색기 | 수신 건수/분(버킷 평균), 시간 구간 적용, 서버·유형·프로세스·정책·출처 필터, 서버별 표·페이지 목록·별도 원본 상세 |
 | `/servers` | 서버 보안 대시보드 | 서버별 관찰/정책 일치 수, 유형 분포·추이·프로세스 부모/관찰 통신 관계·초점 탐색 |
 
-`navigation.ts`는 다섯 경로의 History 탐색·뒤로/앞으로·직접 진입을 다룬다. `/`와 예전 `#overview`는 `/overview`, `#events`는 `/telemetry`, `#analysis`는 `/overview`의 안전 분석 영역으로 안내한다. Vite의 SPA fallback으로 직접 URL 새로고침이 가능하다. 원본 상세는 `/telemetry?event=UUID`에서 별도 modal로 열고 URL 재진입도 지원한다. 모르는 경로에는 개요 이동을 제공한다.
+`navigation.ts`는 다섯 경로의 History 탐색·뒤로/앞으로·직접 진입을 다룬다. `/`와 예전 `#overview`는 `/overview`, `#events`는 `/telemetry`, `#analysis`는 `/overview`의 안전 분석 영역으로 안내한다. Vite의 SPA fallback으로 직접 URL 새로고침이 가능하다. 개요의 최근 이벤트나 텔레메트리 목록을 선택하면 현재 화면 오른쪽에 상세 사이드바가 열리고 선택 행이 강조된다. `?event=UUID`로 직접 진입할 수 있으며 닫기·Esc·브라우저 뒤로가 동작한다. 원본 JSON은 별도 탭에서 텍스트로 표시한다. 모르는 경로에는 개요 이동을 제공한다.
+
+현재 API는 개별 **이벤트 조회**를 제공한다. 사건 상관 분석, 사건별 AI 요약, 처리 상태·체크리스트·메모 저장 계약은 없으므로 사이드바에 가상 결과나 저장 버튼을 표시하지 않는다. 사이드바의 확인 항목은 운영자 참고 문구이며 조치를 자동 실행하지 않는다.
 
 `src/screens/`의 화면과 읽기 hook, `src/events/`의 필터·목록·상세·집계 차트, `src/analysis/`의 안전 캡처 흐름을 분리했다. 공통 API 경로는 `src/api.ts`, DTO와 allowlist는 `src/types.ts`에 있다. 프레임워크나 외부 서비스를 새로 추가하지 않았다.
 

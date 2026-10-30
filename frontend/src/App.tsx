@@ -41,7 +41,7 @@ export default function App() {
     [refresh, setRefresh] = useState(0),
     [busy, setBusy] = useState(false);
   const [detailId, setDetailId] = useState(
-    path === '/telemetry' ? new URLSearchParams(location.search).get('event') || '' : '',
+    () => new URLSearchParams(location.search).get('event') || '',
   );
   const [briefing, setBriefing] = useState<Analysis>();
   const [analysisOpen, setAnalysisOpen] = useState(
@@ -64,6 +64,11 @@ export default function App() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    const syncDetail = () => setDetailId(new URLSearchParams(location.search).get('event') || '');
+    addEventListener('popstate', syncDetail);
+    return () => removeEventListener('popstate', syncDetail);
+  }, []);
   const stale = !instances.successAt || now - Date.parse(instances.successAt) > 10000;
   function choose(next: Selection) {
     if (busy) return;
@@ -74,11 +79,13 @@ export default function App() {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
       return;
     event.preventDefault();
-    if (!busy) navigate(target);
+    if (!busy) { setDetailId(''); navigate(target); }
   }
   function inspect(id: string) {
     if (busy) return;
-    navigate(`/telemetry?event=${encodeURIComponent(id)}`);
+    const url = new URL(location.href);
+    url.searchParams.set('event', id);
+    history.pushState(null, '', url);
     setDetailId(id);
   }
   function closeDetail() {
@@ -97,6 +104,7 @@ export default function App() {
   }
   function inspectReplay(filters: PeriodFilters) {
     if (busy) return;
+    setDetailId('');
     choose({
       ...filters,
       period: 'custom',
@@ -110,12 +118,13 @@ export default function App() {
     refresh,
     live,
     onDetail: inspect,
+    selectedDetailId: detailId,
     onPage: setPage,
     onSelection: choose,
     onAnalyze: analyze,
   };
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${detailId ? 'has-event-detail' : ''}`}>
       <aside className="sidebar">
         <a className="brand" href="/overview" onClick={(event) => go(event, '/overview')}>
           <span className="brand-icon">L</span>
@@ -303,7 +312,7 @@ export default function App() {
           <footer>LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
         </main>
       </div>
-      {detailId && <Detail id={detailId} onClose={closeDetail} />}
+      {detailId && <><button type="button" className="event-drawer-backdrop" aria-label="상세 닫기" onClick={closeDetail} /><Detail id={detailId} onClose={closeDetail} /></>}
     </div>
   );
 }
