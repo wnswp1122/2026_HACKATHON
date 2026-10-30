@@ -1,5 +1,5 @@
 import { serverName } from './types';
-import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { api } from './api';
 import { MonitoringSetup } from './MonitoringSetup';
 import { Detail } from './events/Detail';
@@ -18,6 +18,7 @@ import {
 } from './types';
 const AnalysisPanel = lazy(() => import('./analysis/AnalysisPanel'));
 const SampleAnalysisPanel = lazy(() => import('./analysis/SampleAnalysisPanel'));
+const CollectionStatus = lazy(() => import('./screens/CollectionStatus').then((m) => ({ default: m.CollectionStatus })));
 const Overview = lazy(() => import('./screens/LiveScreens').then((m) => ({ default: m.Overview })));
 const Telemetry = lazy(() =>
   import('./screens/LiveScreens').then((m) => ({ default: m.Telemetry })),
@@ -38,6 +39,11 @@ const localTime = (value: string) => {
 
 const scopeStorageKey = 'litesoc-monitoring-scope';
 function savedScope(): Pick<Selection, 'instanceId' | 'source'> | undefined {
+  const params = new URLSearchParams(location.search);
+  const source = params.get('source');
+  if (source === 'live' || source === 'sample') {
+    return { source, instanceId: params.get('instanceId') || undefined };
+  }
   try {
     const value = JSON.parse(sessionStorage.getItem(scopeStorageKey) || 'null');
     if (value && (value.source === 'live' || value.source === 'sample') &&
@@ -71,6 +77,12 @@ export default function App() {
   const analysisToggleRef = useRef<HTMLButtonElement>(null);
   const analysisCloseRef = useRef<HTMLButtonElement>(null);
   const instances = useResource(api.instances, refresh);
+  const loadReadiness = useCallback(async (signal: AbortSignal) => ({
+    source: selection.source || 'live',
+    value: await api.readiness(undefined, selection.source || 'live', signal),
+  }), [selection.source]);
+  const readiness = useResource(loadReadiness, refresh);
+  const currentReadiness = readiness.data && readiness.data.source === selection.source ? readiness.data.value : undefined;
   const live = useDashboard(
     selection,
     page,
@@ -84,6 +96,11 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (!configured) return;
+    const url = new URL(location.href);
+    url.searchParams.set('source', selection.source || 'live');
+    if (selection.instanceId) url.searchParams.set('instanceId', selection.instanceId);
+    else url.searchParams.delete('instanceId');
+    history.replaceState(null, '', url);
     try {
       sessionStorage.setItem(scopeStorageKey, JSON.stringify({ instanceId: selection.instanceId, source: selection.source }));
     } catch { /* Keep the in-memory selection when storage is unavailable. */ }
@@ -153,9 +170,12 @@ export default function App() {
   if (setupOpen) return (
     <MonitoringSetup
       selection={selection}
-      instances={instances.data?.items || []}
-      loading={instances.loading}
-      error={instances.error}
+      instances={[...new Set([
+        ...(currentReadiness?.items.map((item) => item.instanceId) || []),
+        ...(instances.data?.items.map((item) => item.instanceId) || []),
+      ])]}
+      loading={instances.loading || readiness.loading}
+      error={[instances.error, readiness.error].filter(Boolean).join(' · ')}
       onRetry={() => setRefresh((value) => value + 1)}
       onCancel={configured ? () => setSetupOpen(false) : undefined}
       onStart={(instanceId, source) => {
@@ -265,6 +285,11 @@ export default function App() {
           )}
           {route && (
             <>
+              {path !== '/readiness' && selection.source === 'live' && <Suspense fallback={<p role="status">수집 상태 화면 준비 중…</p>}><CollectionStatus
+                resource={{ ...readiness, data: currentReadiness }}
+                instanceId={selection.instanceId}
+                onReadiness={() => navigate('/readiness')}
+              /></Suspense>}
               {briefing && (
                 <div className="ai-briefing">
                   <span className="ai-tag">AI 관찰</span>

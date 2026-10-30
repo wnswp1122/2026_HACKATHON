@@ -27,7 +27,11 @@ function LiveStatus({ live }: Pick<Props, 'live'>) {
   return (
     <>
       <ResourceStatus label="전체 집계·목록" resource={{ ...live, data: live.data, successAt: live.data?.successAt }} />
-      {live.data?.dashboard.simulation && <p className="hint" role="note">
+      {live.data && !live.error && live.data.dashboard.total === 0 && <div className="notice" role="status">
+        <strong>선택한 기간과 조건에 맞는 이벤트가 없습니다.</strong>
+        <p>조회 기간을 넓히거나 상세 필터를 해제해 보세요.{live.data.filters.source === 'live' && ' 실제 수집 데이터가 계속 없다면 준비 점검과 서버의 이벤트 전송을 확인하세요.'}</p>
+      </div>}
+      {live.data?.filters.source === 'sample' && live.data.dashboard.simulation && <p className="hint" role="note">
         sample 환산 집계 · 대표 원본 {number(live.data.dashboard.simulation.representativeEvents)}건으로 활동 규모를 표현합니다.
         상세 목록·관계·조사·AI 분석은 대표 원본 기준입니다.
       </p>}

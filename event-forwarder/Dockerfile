@@ -3,9 +3,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements.lock ./requirements.lock
 RUN pip install --no-cache-dir -r requirements.lock \
+    && mkdir /spool \
+    && chown 10001:10001 /spool \
+    && chmod 700 /spool \
     && groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --no-create-home app
-COPY main.py settings.py forwarder.py inputs.py status_input.py ./
+COPY main.py settings.py forwarder.py inputs.py status_input.py spool.py ./
 USER app
 ENTRYPOINT ["python", "main.py"]
 CMD ["--check-config"]

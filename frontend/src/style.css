@@ -1822,6 +1822,10 @@ main,
 .setup-form > label { font-weight: 700; }
 .setup-form > label span { color: var(--muted); font-weight: 400; font-size: 14px; }
 .setup-form > select { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--text); }
+.collection-status { margin-bottom: 20px; padding: 20px; }
+.collection-status p { line-height: 1.7; }
+.collection-status small { display: block; color: var(--muted); }
+.collection-status .hint { margin-bottom: 0; }
 .setup-sources { border: 0; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
 .setup-sources legend { padding: 0 0 12px; font-weight: 700; }
 .setup-sources label { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
