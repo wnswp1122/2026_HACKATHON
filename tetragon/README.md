@@ -1,14 +1,42 @@
-# Tetragon 시연 런타임
+# LiteSOC · Tetragon 사용자 서버 런타임
 
-**전용 Lima VM에서 기본 exec/exit, 고정 파일 읽기 관찰, 별도 probe의 SIGKILL 종료와 정책 해제 후 복구를 실측했다.** 게시판은 이 워크트리의 health/SQLite 프레임워크 이미지이며 CRUD·전송기·SaaS·프론트 통합은 미검증이다. 파일 읽기 완전 차단이나 운영 보안을 보장하지 않는다.
+제품 소개는 **AI 기반 서버 보안 모니터링·분석 플랫폼**, 시각 브랜드는 **LiteSOC**다.
 
-기준 커밋은 `1e94262`. `tetragon/`만 수정했다. `demo/`는 읽어서 빌드했고 수정하지 않았다. `hack-board-dev`, 공유 VM 생명주기와 기본 Docker context는 변경하지 않았다.
+**현재 단일 기준은 `d960d3f`의 [Tetragon 5개 화면 계획](https://github.com/wnswp1122/2026_HACKATHON/blob/d960d3feeed6b1693be47e1a1e7cd48c0b911dac/docs/tetragon-screen-plan.md), [PR #4](https://github.com/wnswp1122/2026_HACKATHON/pull/4)다.** 이 브랜치의 오래된 공통 docs만 읽고 후속 계약을 판단하지 않는다. 기존 v1 이벤트 봉투와 AI 안전 Snapshot 계약은 유지한다.
+
+전용 VM에서 exec/file/network/exit, 기존 probe SIGKILL·해제 후 복구, 관리 조회·정책 비활성/오류·센서 중단과 상태 파일을 실측했다. 성공/거부 연결 모두 이벤트가 생기므로 연결 성공/전송량/공격으로 표현하지 않는다. **개별 센서 목록은 v1.8.0 관리 API에서 미지원**이며 준비 정상으로 포장하지 않는다.
+
+`tetragon/`만 수정한다. 현재 사용자 승인에 따라 `demo-board`의 코드를 읽어 자기 `hack-demo` 이미지만 갱신했고, 볼륨/probe를 보존했다. `hack-board-dev`, 다른 DB/컨테이너, VM 생명주기와 Docker context는 변경하지 않았다. 다른 브랜치를 merge/cherry-pick하지 않았다.
+
+## 5개 화면 후속 구현과 현재 전달 사항
+
+| 제공 항목 | 구현·실측·연결 |
+|---|---|
+| 네트워크 | `hack-demo-network`, `tcp_connect` arg0=`sock`, 별도 net-probe + 현재 hack-demo Mnt + `127.0.0.1:8080/18080`, Post만 사용. `CONNECT_OK`/0과 `ECONNREFUSED`/1 모두 실제 원본 확보 |
+| 파일/SIGKILL | 기존 `hack-demo-observe`/`hack-demo-enforce` 조건 유지. 대응 중 별도 net-probe 정상·health 정상, 기존 파일 probe만137. 해제 후 정상 복구 |
+| 정규화 연결 | [필드 매핑](field-mapping.md)의 policy/hook/인자 타입을 core에 전달. `parentExecId`는 실제 `parent.exec_id`; 파일 `operation=read`, 네트워크 `operation=connect`, `protocol=TCP`; 미관찰 필드는 null, outcome은 unknown |
+| 상태 파일 | VM `~/2026-hack-runtime/tetragon/status.json`, 30초 시작 주기, 새 observedAt, 임시파일→원자적 교체. 이벤트/진단과 분리. [상태 계약·실행·제약](status.md) |
+| 미지원 센서 목록 | `tetra sensors list` → 실제 `ListSensors is deprecated`. `collector.state=unknown/errorCode=SENSOR_STATUS_UNSUPPORTED`, `sensors=[]`, 실제 reachable/version/policies를 유지. 빈 센서를 ready로 보지 않음 |
+| 상태 실패 | 실제 `TP_STATE_DISABLED`, `TP_STATE_LOAD_ERROR`, 관리 socket 조회 실패, 자기 Tetragon 중단, collector SIGTERM 종료를 각각 기록. raw CLI 오류/설정/환경변수는 전송하지 않음 |
+| 같은 대상 CRUD | `demo-board` `fd05cd4`의 깨끗한 demo 소스를 읽어 `hack-demo:tetragon-runtime` 빌드. 이미지 `sha256:3a783171c3a0fbe422681254ac1897ba84782adccfbed86444247a17dbace094`; 같은 DB 볼륨·read-only probe 유지 |
+
+같은 대상 CRUD는 게시판 담당이 2026-10-30 UTC 19:40:44.425–19:40:45.010에 검증했다. 관찰 두 정책의 enabled/monitor_only를 전후 조회했고 HTTP 20요청(생성201, 조회/수정200, 오류422, 삭제204, 삭제 후404), 생성ID1만 정리·0건→0건을 기록했다. 직접 읽은 증거는 [demo-board f18c9f8의 same-target-crud.json](https://github.com/wnswp1122/2026_HACKATHON/blob/f18c9f813550e75bc311ea8999a4a100d327ab1f/demo/evidence/same-target-crud.json), [Draft PR #8](https://github.com/wnswp1122/2026_HACKATHON/pull/8)이다. 게시판 담당의 HTTP 검증과 이 작업의 커널 원본 검증은 구분한다. 이 이미지 갱신은 소스 통합이 아니다.
+
+이번 원본과 실행 기록은 [evidence/screen-plan](evidence/screen-plan/README.md)에 있다. `network`와 `network-off`는 파일 정책을 유지한 채 자기 네트워크 정책만 적용/해제한다. 파일 observe/enforce만 상호 교체한다. `off`는 자기 세 정책을 해제한다. 잘못된 정책 시연용 `hack-demo-status-error`는 삭제했다.
+
+현재 운영 시연 상태는 **observe/network 두 Post 정책 활성, enforce 해제, 자기 상태 수집기 실행**이다. 상태 수집기 PID와 로그는 VM `tetragon/status-collector.pid`, `status-collector.log`에 있다. 종료 절차와 stale 경계는 [status.md](status.md)를 따른다.
+
+실제 SaaS→5화면·AI 통합은 미검증이다. IPv6/UDP/accept/전송량·외부 통신 위치는 실측하지 않았다. 여기서 관찰한 loopback IP에 위치를 만들거나 GeoIP를 호출하지 않는다. 센서 목록 한계 때문에 준비 상태가 ready라고 주장할 수 없다. CI/자동 테스트를 추가하지 않았고 아래 기록은 실제 기동·수동 확인이다.
+
+## 최초 구현 재현과 이전 실측 기록
+
+아래 환경·4단계 표는 `1e94262`에서 시작해 `5f7b473`으로 남긴 최초 실행 기록이다. 당시 health-only/정책 해제 상태와 이번 후속 상태를 혼동하지 않는다. 설치 명령은 새 probe/status 파일도 복사하도록 갱신했다.
 
 ## 구성과 범위
 
 - `probe.py`: `/tmp/hack-demo/protected.txt`만 읽고 정확히 `demo-only` 9바이트인지 확인한다. 정상 `READ_OK`/0, 읽기 오류 `READ_ERROR`/1, 내용 불일치 /2. HTTP 요청으로 실행하지 않는다.
 - `runtime.py`: **Linux VM 내부**에서 준비·기동·정책 교체·조회·해제·probe·health·센서 종료를 수행한다. 컨테이너와 DB 볼륨의 소유 label을 확인하며 기존 컨테이너를 자동 삭제하지 않는다.
-- `policies/observe.yaml`, `enforce.yaml`: 현재 `hack-demo`의 mount namespace를 치환해서 적용하는 템플릿. 두 정책은 교체 적용한다.
+- `policies/observe.yaml`, `enforce.yaml`, `network.yaml`: 현재 `hack-demo`의 mount namespace를 치환해서 적용하는 템플릿. 파일 두 정책은 교체하고 네트워크 관찰은 독립 적용한다.
 - `requirements.lock`: 표준 라이브러리만 사용한다. 서버 의존성을 복사하지 않는다.
 - `evidence/`: 비밀정보 없는 시연에서 선택한 실제 원본 줄과 실행 결과. 전체 호스트 이벤트는 Git에 넣지 않았다.
 
@@ -57,7 +85,7 @@ docker --host "unix://$HOME/.lima/2026-hack-client/sock/docker.sock" build -t ha
 # VM 홈을 조회하며 호스트 홈 mount는 사용하지 않는다.
 TETRAGON_VM_HOME=$(limactl shell 2026-hack-client printenv HOME)
 limactl shell 2026-hack-client mkdir -p "$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src"
-limactl copy tetragon/runtime.py tetragon/probe.py tetragon/requirements.lock "2026-hack-client:$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src/"
+limactl copy tetragon/runtime.py tetragon/probe.py tetragon/network_probe.py tetragon/sensor_status.py tetragon/requirements.lock "2026-hack-client:$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src/"
 limactl copy -r tetragon/policies "2026-hack-client:$TETRAGON_VM_HOME/2026-hack-runtime/tetragon/src/"
 limactl shell 2026-hack-client
 ```
@@ -98,7 +126,7 @@ VM의 위 `src` 폴더에서 실행한다.
 echo $?
 .venv/bin/python runtime.py health
 
-# 자기 정책 두 이름만 해제
+# 자기 정책 세 이름만 해제
 .venv/bin/python runtime.py off
 .venv/bin/python runtime.py status
 .venv/bin/python runtime.py probe
@@ -112,7 +140,7 @@ echo $?
 
 적용은 `runtime.py`로 통일한다. `docker exec hack-demo readlink /proc/self/ns/mnt`로 현재 namespace를 조회하며 호스트 namespace는 거부한다. 렌더링 파일은 VM `~/2026-hack-runtime/tetragon/policies/`에 있고 컨테이너 `/policies/`에 read-only mount한다. 내부에서 `tetra --server-address unix:///var/run/tetragon/tetragon.sock tracingpolicy add/list/delete`를 사용한다. YAML 템플릿을 직접 add하지 않는다.
 
-기존 자기 정책을 해제한 뒤 하나를 add하고 JSON 목록의 `TP_STATE_ENABLED`를 확인한다. 실패 시 `status`와 진단 로그를 확인한다. 이전 정책으로 자동 롤백하지 않는다. 컨테이너 재생성/재시작 후에는 정책도 해제·재적용한다. namespace 번호는 재사용될 수 있어 오래된 렌더링 파일을 재사용하면 안 된다.
+파일 정책은 기존 파일 두 이름을 해제한 뒤 하나를 add하고 JSON 목록의 `TP_STATE_ENABLED`를 확인한다. 네트워크 정책은 자기 네트워크 이름만 교체한다. 실패 시 `status`와 진단 로그를 확인한다. 이전 정책으로 자동 롤백하지 않는다. 컨테이너 재생성/재시작 후에는 정책도 해제·재적용한다. namespace 번호는 재사용될 수 있어 오래된 렌더링 파일을 재사용하면 안 된다.
 
 센서 재기동 후 빈 정책 목록을 확인했다. 정책 자동 복원은 설정하지 않았다. 컨테이너/볼륨 삭제가 필요하면 이 작업의 `io.2026-hack.owner=2026-hack-tetragon-runtime` label과 필요 데이터를 먼저 확인해 해당 자원만 처리한다. 공유 VM 중지나 전체 Docker/BPF 정리는 하지 않는다.
 
@@ -170,6 +198,6 @@ SaaS 팀은 [실측 필드 매핑](field-mapping.md)을 사용한다. 공통 계
 
 `Sigkill` 보고·137·실제 `SIGKILL` 종료를 확인했지만 커널 내부에서 읽기가 어느 범위까지 진행됐는지 측정하지 않았다. `READ_OK` 미출력은 바이트 접근 완전 차단 증거가 아니다. exact-path 정책은 hardlink·다른 namespace·다른 binary·mmap·이미 열린 FD 등의 모든 경로를 포괄하지 않는다. 이 우회/차단 효과는 미검증이다.
 
-**별도 미검증:** 게시판 CRUD/DB 기능 회귀, 다른 namespace의 동일 binary/파일 음성 대조, 대량·장기 수집/회전·유실, 전송기 live/follow, 실제 SaaS 수신/정규화·대시보드·AI 통합. `outcome`은 자동으로 succeeded/blocked로 정규화하지 않는다. 저장한 시연 원본을 replay하면 봉투 `source=sample`이며 과거 실측을 현재 live로 전달하지 않는다.
+**최초 작업에서 미검증이었던 범위:** 게시판 CRUD/DB 기능 회귀, 다른 namespace의 동일 binary/파일 음성 대조, 대량·장기 수집/회전·유실, 전송기 live/follow, 실제 SaaS 수신/정규화·대시보드·AI 통합. 같은 대상 CRUD의 이번 후속 증거는 위 표에 별도로 연결했다. `outcome`은 자동으로 succeeded/blocked로 정규화하지 않는다. 저장한 시연 원본을 replay하면 봉투 `source=sample`이며 과거 실측을 현재 live로 전달하지 않는다.
 
-완료 시점: `hack-demo`/`hack-tetragon` 실행 중, 자기 정책 모두 해제, 보호파일/probe·실시간 JSONL 유지, health 정상. VM과 `hack-board-dev`는 유지했다. 푸시·PR·머지는 수행하지 않았다.
+최초 `5f7b473` 완료 당시에는 자기 정책 모두 해제, 컨테이너·실시간 JSONL 유지, health 정상이었으며 푸시/PR을 하지 않았다. **이번 요청은 feature branch push와 Draft PR을 승인했으며 master 머지는 승인하지 않았다.** 현재 상태는 위 후속 전달 사항을 따른다.

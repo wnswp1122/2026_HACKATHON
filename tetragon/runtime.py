@@ -13,7 +13,8 @@ OWNER = "2026-hack-tetragon-runtime"
 LABEL = f"io.2026-hack.owner={OWNER}"
 ROOT = Path.home() / "2026-hack-runtime/tetragon"
 SOURCE = Path(__file__).resolve().parent
-POLICIES = ("hack-demo-observe", "hack-demo-enforce")
+FILE_POLICIES = ("hack-demo-observe", "hack-demo-enforce")
+POLICIES = (*FILE_POLICIES, "hack-demo-network")
 HEALTH_CHECK = ["exec", "hack-demo", "python", "-c",
                 "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=1).read().decode())"]
 POLICY_CLI = ["exec", "hack-tetragon", "tetra", "--server-address",
@@ -66,9 +67,9 @@ def policy_list() -> list[dict]:
     return data.get("policies", [])
 
 
-def off() -> None:
+def off(names: tuple[str, ...] = POLICIES) -> None:
     for policy in policy_list():
-        if policy["name"] in POLICIES:
+        if policy["name"] in names:
             tetra("delete", policy["name"])
     tetra("list")
 
@@ -76,6 +77,22 @@ def off() -> None:
 def health() -> None:
     running("hack-demo")
     docker(*HEALTH_CHECK)
+
+
+def prepare_probes() -> None:
+    running("hack-demo")
+    probe_dir = ROOT / "probe"
+    probe_dir.mkdir(exist_ok=True)
+    for name in ("probe.py", "network_probe.py"):
+        (probe_dir / name).write_bytes((SOURCE / name).read_bytes())
+    docker("exec", "-u", "0", "hack-demo", "sh", "-ec",
+           "cp /usr/local/bin/python3.12 /usr/local/bin/hack-demo-probe; "
+           "cp /usr/local/bin/python3.12 /usr/local/bin/hack-demo-net-probe; "
+           "chmod 755 /usr/local/bin/hack-demo-probe /usr/local/bin/hack-demo-net-probe; "
+           "mkdir -p /tmp/hack-demo; "
+           "if [ ! -e /tmp/hack-demo/protected.txt ]; then "
+           "printf %s demo-only > /tmp/hack-demo/protected.txt; fi; "
+           "chmod 444 /tmp/hack-demo/protected.txt")
 
 
 def prepare() -> None:
@@ -93,17 +110,12 @@ def prepare() -> None:
     docker("volume", "create", "--label", LABEL, "hack-tetragon-board-data")
     probe_dir = ROOT / "probe"
     probe_dir.mkdir(exist_ok=True)
-    (probe_dir / "probe.py").write_bytes((SOURCE / "probe.py").read_bytes())
     # 별도 볼륨 이름으로 게시판 담당의 데이터와 분리한다.
     docker("run", "-d", "--name", "hack-demo", "--label", LABEL,
            "-p", "127.0.0.1:8081:8080", "-v", "hack-tetragon-board-data:/data",
            "--mount", f"type=bind,src={probe_dir},dst=/opt/hack-demo-probe,readonly",
            "hack-demo:tetragon-runtime")
-    docker("exec", "-u", "0", "hack-demo", "sh", "-ec",
-           "cp /usr/local/bin/python3.12 /usr/local/bin/hack-demo-probe; "
-           "chmod 755 /usr/local/bin/hack-demo-probe; "
-           "mkdir -p /tmp/hack-demo; printf %s demo-only > /tmp/hack-demo/protected.txt; "
-           "chmod 444 /tmp/hack-demo/protected.txt")
+    prepare_probes()
     wait_ready(HEALTH_CHECK)
 
 
@@ -143,7 +155,7 @@ def apply(mode: str) -> None:
         raise RuntimeError("namespace 템플릿 확인 실패")
     target = ROOT / "policies" / f"{mode}.yaml"
     target.write_text(text.replace("__HACK_DEMO_MNT_NS__", str(namespace)))
-    off()
+    off(("hack-demo-network",) if mode == "network" else FILE_POLICIES)
     tetra("add", f"/policies/{mode}.yaml")
     loaded = policy_list()
     if not any(p["name"] == f"hack-demo-{mode}" and p["state"] == "TP_STATE_ENABLED" for p in loaded):
@@ -154,18 +166,22 @@ def apply(mode: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["prepare", "start", "status", "observe", "enforce", "off", "probe", "health", "stop"])
+    parser.add_argument("command", choices=["prepare", "probes", "start", "status", "observe", "enforce", "network", "network-off", "off", "probe", "network-probe", "network-probe-closed", "health", "stop"])
     args = parser.parse_args()
     if sys.platform != "linux":
         raise RuntimeError("준비된 2026-hack-client Linux VM 안에서 실행하세요")
     if args.command == "prepare":
         prepare()
+    elif args.command == "probes":
+        prepare_probes()
     elif args.command == "start":
         start()
     elif args.command == "status":
         tetra("list")
-    elif args.command in ("observe", "enforce"):
+    elif args.command in ("observe", "enforce", "network"):
         apply(args.command)
+    elif args.command == "network-off":
+        off(("hack-demo-network",))
     elif args.command == "off":
         off()
     elif args.command == "probe":
@@ -174,6 +190,11 @@ def main() -> None:
                "/opt/hack-demo-probe/probe.py")
     elif args.command == "health":
         health()
+    elif args.command in ("network-probe", "network-probe-closed"):
+        running("hack-demo")
+        docker("exec", "hack-demo", "/usr/local/bin/hack-demo-net-probe", "-I",
+               "/opt/hack-demo-probe/network_probe.py",
+               "closed" if args.command.endswith("-closed") else "health")
     elif args.command == "stop":
         off()
         docker("stop", "hack-tetragon")
