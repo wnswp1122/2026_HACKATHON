@@ -17,7 +17,7 @@ export function MonitoringSetup({ selection, instances, loading, error, onRetry,
   return (
     <main className="setup-screen">
       <div className="setup-content">
-        <div className="brand"><span className="brand-icon">L</span><b>LiteSOC</b></div>
+        <div className="brand"><span className="brand-icon">S</span><b>ServerWatch</b></div>
         <h1>모니터링할 서버를 선택하세요</h1>
         <p className="setup-description">한 번 설정하면 같은 서버의 데이터를 5개 모니터링 화면에서 확인할 수 있습니다.</p>
         <form className="panel setup-form" onSubmit={(event) => {
