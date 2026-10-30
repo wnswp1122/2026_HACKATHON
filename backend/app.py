@@ -29,7 +29,7 @@ def error_response(status: int, code: str, message: str, headers=None) -> JSONRe
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Tetragon SaaS", version="1", lifespan=lifespan)
+    app = FastAPI(title="AI 기반 서버 보안 모니터링·분석 플랫폼", version="1", lifespan=lifespan)
     app.state.loaded_modules = []
     app.state.missing_modules = []
     for name in MODULES:

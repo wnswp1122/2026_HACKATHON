@@ -1,6 +1,6 @@
-# SaaS 백엔드: DB·수신 기반
+# AI 기반 서버 보안 모니터링·분석 플랫폼
 
-이 브랜치는 `saas-core` 소유 범위인 FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·수신·정규화를 구현한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 조회·스냅샷·AI·프론트와 실제 Tetragon 통합은 별도 작업이다.
+AI 기반 서버 보안 모니터링·분석 플랫폼의 백엔드다. 이 브랜치는 `saas-core` 소유 범위인 FastAPI 실행 기반, PostgreSQL 공통 스키마, 인증·수신·정규화를 구현한다. [수신 계약](../docs/api-contract.md)과 [병렬 개발 기준](../docs/saas-parallel-development.md)을 따른다. 조회·스냅샷·AI·프론트와 실제 Tetragon 통합은 별도 작업이다.
 
 ## 실행 기반과 연결 지점
 
