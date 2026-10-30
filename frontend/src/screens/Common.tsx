@@ -13,6 +13,7 @@ import {
   dateTime,
   number,
   sourceLabel,
+  typeLabels,
   type Dashboard,
   type PeriodFilters,
   type ServerSummary,
@@ -25,45 +26,54 @@ export function ResourceStatus({
   resource: Resource<unknown>;
   label: string;
 }) {
+  const stale = resource.successAt && Date.now() - Date.parse(resource.successAt) > 10000;
+  if (resource.data && !resource.error && !stale) return null;
   return (
     <div className="resource-status">
-      <p>
-        {label} · 마지막 성공 {resource.successAt ? dateTime(resource.successAt) : '없음'}
-        {resource.loading ? ' · 조회 중…' : ''}
-        {resource.successAt && Date.now() - Date.parse(resource.successAt) > 10000
-          ? ' · 오래된 데이터'
-          : ''}
-      </p>
-      {resource.error && (
+      {resource.error ? (
         <div role="alert" className="error-banner">
-          {resource.error}
-          {resource.data
-            ? ' 마지막 성공 결과와 그 범위를 유지합니다.'
-            : ' 제품 API에 예시를 자동 주입하지 않습니다.'}
+          <strong>{label} 조회 실패</strong> · {resource.error}
+          {!!resource.data && <span> · 이전 데이터 {dateTime(resource.successAt || null)}</span>}
         </div>
-      )}
-      {!resource.data && !resource.error && (
-        <p role="status" className="empty">
-          {label} 불러오는 중…
-        </p>
+      ) : stale ? (
+        <span className="status-chip caution">{label} · 업데이트 지연</span>
+      ) : (
+        <p role="status" className="empty">{label} 불러오는 중…</p>
       )}
     </div>
   );
 }
-export function Scope({ filters }: { filters: PeriodFilters }) {
+
+export function Scope({ filters, compact = false }: { filters: PeriodFilters; compact?: boolean }) {
+  const hasFilters = [filters.instanceId, filters.status, filters.eventType, filters.policyName, filters.processExecId].some(Boolean);
+  if (compact && !hasFilters) return null;
+  const format = new Intl.DateTimeFormat('ko-KR', {
+    ...(Date.parse(filters.to) - Date.parse(filters.from) >= 86400000
+      ? { month: 'numeric', day: 'numeric' }
+      : {}),
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
   return (
-    <p className="scope">
-      수신 시각 [ {dateTime(filters.from)} ~ {dateTime(filters.to)} ) ·{' '}
-      {filters.instanceId || '전체 인스턴스'} · {sourceLabel(filters.source)}
-      {filters.processExecId ? ` · execId=${filters.processExecId}` : ''}
-      {filters.policyName ? ` · 정책=${filters.policyName}` : ''}
-    </p>
+    <div className="scope-chips" aria-label="표시 중인 데이터 범위">
+      {!compact && <span className={`status-chip ${filters.source === 'sample' ? 'caution' : ''}`}>{sourceLabel(filters.source)}</span>}
+      {filters.instanceId && <span className="status-chip">{filters.instanceId}</span>}
+      {filters.status && <span className="status-chip">{filters.status === 'attention' ? '주의' : '관찰됨'}</span>}
+      {filters.eventType && <span className="status-chip">{typeLabels[filters.eventType]}</span>}
+      {filters.policyName && <span className="status-chip">{filters.policyName}</span>}
+      {filters.processExecId && <span className="status-chip" title={filters.processExecId}>프로세스 필터 적용</span>}
+      {!compact && <span className="status-chip" title={`${dateTime(filters.from)} ~ ${dateTime(filters.to)}`}>
+        {format.format(new Date(filters.from))}
+        {' – '}
+        {format.format(new Date(filters.to))}
+      </span>}
+    </div>
   );
 }
+
 export function Stats({
   items,
 }: {
-  items: { label: string; value: number | string; note: string; tone?: string }[];
+  items: { label: string; value: number | string; tone?: string }[];
 }) {
   return (
     <div className={`screen-stats count-${items.length}`}>
@@ -71,7 +81,7 @@ export function Stats({
         <article className={`metric ${item.tone || ''}`} key={item.label}>
           <span>{item.label}</span>
           <strong>{typeof item.value === 'number' ? number(item.value) : item.value}</strong>
-          <p>{item.note}</p>
+
         </article>
       ))}
     </div>
@@ -79,42 +89,36 @@ export function Stats({
 }
 export function Timeline({
   dashboard,
-  to,
-  rate = false,
+  explain = false,
 }: {
   dashboard: Dashboard;
-  to: string;
-  rate?: boolean;
+  explain?: boolean;
 }) {
-  const rows = dashboard.timeline.map((row) => {
-    const seconds = Math.max(
-      0.001,
-      Math.min(dashboard.bucketSeconds, (Date.parse(to) - Date.parse(row.bucketStart)) / 1000),
-    );
-    return {
-      ...row,
-      count: rate ? Number(((row.count * 60) / seconds).toFixed(2)) : row.count,
-      attention: rate ? Number(((row.attention * 60) / seconds).toFixed(2)) : row.attention,
-    };
-  });
   return (
     <article className="panel timeline-panel">
       <div className="panel-heading">
-        <h3>{rate ? '이벤트 수신량 · 건/분' : '관찰 · 정책 일치 추이'}</h3>
+        <h3>{explain ? '시간별 수집 이벤트 수' : '이벤트 · 주의 추이'}</h3>
         <span>
-          {dashboard.bucketSeconds / 60}분 버킷{rate ? ' 평균' : ''}
+          {dashboard.bucketSeconds / 60}분당 건수
         </span>
       </div>
+      {explain && (
+        <p className="timeline-explanation">
+          서버에서 보낸 프로세스 실행·파일 접근·네트워크 등 관찰 기록을 수신 시각으로 집계합니다.
+          주의는 전체 중 경고 정책에 해당하는 기록이며, 공격 횟수는 아닙니다.
+        </p>
+      )}
       <div className="legend">
-        <i className="dot blue" /> 전체 <i className="dot amber" /> 정책 일치
+        <i className="dot blue" /> 전체 <i className="dot amber" /> 주의
       </div>
+      {explain && <p className="timeline-axis-caption">수신 시각 · {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>}
       <div className="chart">
         <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={rows} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
+          <AreaChart data={dashboard.timeline} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
             <CartesianGrid stroke="#242a33" vertical={false} />
             <XAxis
               dataKey="bucketStart"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 12, fill: '#a6b1c2' }}
               minTickGap={50}
               tickFormatter={(v) =>
                 new Date(v).toLocaleString(
@@ -125,17 +129,17 @@ export function Timeline({
                 )
               }
             />
-            <YAxis allowDecimals={rate} tick={{ fontSize: 10 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <Tooltip labelFormatter={(v) => dateTime(String(v))} />
             <Area
-              name={rate ? '전체 건/분' : '전체 건수'}
+              name="수집 이벤트"
               dataKey="count"
               stroke="#22d3ee"
               fill="#12353e"
               isAnimationActive={false}
             />
             <Area
-              name={rate ? '정책 일치 건/분' : '정책 일치'}
+              name="주의 (전체에 포함)"
               dataKey="attention"
               stroke="#ff3b5c"
               fill="#3c1923"
@@ -158,7 +162,7 @@ export function ServerTable({
     <article className="panel">
       <div className="panel-heading">
         <h3>서버별 관찰 집계</h3>
-        <span>필터 전체 범위 · 보안 정상 판정 아님</span>
+
       </div>
       <div className="table-scroll">
         <table>
@@ -166,7 +170,7 @@ export function ServerTable({
             <tr>
               <th>서버</th>
               <th>관찰 이벤트</th>
-              <th>정책 일치</th>
+              <th>주의</th>
               <th>최근 수신 · 전체 출처</th>
               {onSelect && <th>필터</th>}
             </tr>
@@ -197,19 +201,19 @@ export function ServerBars({ items }: { items: ServerSummary[] }) {
     <article className="panel server-bars">
       <div className="panel-heading">
         <h3>서버별 관찰 이벤트 수</h3>
-        <span>위험 점수가 아닙니다</span>
+
       </div>
       {items.length ? (
         <ResponsiveContainer width="100%" height={Math.max(220, items.length * 38)}>
           <BarChart data={items} layout="vertical" margin={{ left: 0, right: 15 }}>
             <CartesianGrid stroke="#242a33" horizontal={false} />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
-            <YAxis dataKey="instanceId" type="category" width={130} tick={{ fontSize: 10 }} />
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
+            <YAxis dataKey="instanceId" type="category" width={130} tick={{ fontSize: 12, fill: '#a6b1c2' }} />
             <Tooltip />
             <Bar dataKey="total" name="관찰 이벤트" fill="#22d3ee" isAnimationActive={false} />
             <Bar
               dataKey="attention"
-              name="정책 일치 (전체에 포함)"
+              name="주의 (전체에 포함)"
               fill="#ff3b5c"
               isAnimationActive={false}
             />
@@ -219,26 +223,5 @@ export function ServerBars({ items }: { items: ServerSummary[] }) {
         <p className="empty">관찰된 서버 데이터가 없습니다.</p>
       )}
     </article>
-  );
-}
-export function AnalysisAside({ onAnalyze }: { onAnalyze: () => void }) {
-  return (
-    <aside className="panel analysis-aside">
-      <h3>
-        <span className="ai-tag">AI</span> 관찰 분석
-      </h3>
-      <p>같은 기간·서버·출처의 안전 집계와 요약을 고정하여 분석합니다.</p>
-      <div className="analysis-boundary">
-        <b>분석에 포함되지 않는 정보</b>
-        <p>IP·파일 경로·프로세스 관계·위치·준비 상태·원본·명령 인자</p>
-      </div>
-      <p className="hint">
-        현재 화면 전체를 전송하지 않습니다. 프로세스·정책 추가 필터는 안전 스냅샷에서 제외됩니다.
-      </p>
-      <button className="primary" onClick={onAnalyze}>
-        안전 스냅샷 분석 열기
-      </button>
-      <p className="unsupported">기준선 이상 탐지 · 전송 MB/s · 로그인/유출 판정: 미지원</p>
-    </aside>
   );
 }

@@ -2,13 +2,11 @@ import { useCallback } from 'react';
 import { api } from '../api';
 import {
   dateTime,
-  selectionFilters,
   type ComponentState,
-  type PeriodFilters,
   type ReadinessItem,
   type Selection,
 } from '../types';
-import { AnalysisAside, ResourceStatus, Stats } from './Common';
+import { ResourceStatus, Stats } from './Common';
 import { useResource } from './useResource';
 const labels: Record<ReadinessItem['state'], string> = {
   ready: '수집 준비 확인',
@@ -26,12 +24,10 @@ const componentLabels: Record<ComponentState, string> = {
 export function ReadinessScreen({
   selection,
   refresh,
-  onAnalyze,
   onSelectInstance,
 }: {
   selection: Selection;
   refresh: number;
-  onAnalyze: (filters?: PeriodFilters) => void;
   onSelectInstance: (id: string) => void;
 }) {
   const source = selection.source;
@@ -47,7 +43,7 @@ export function ReadinessScreen({
   if (!source)
     return (
       <div className="notice" role="status">
-        준비 점검은 출처를 혼합하지 않습니다. 위 필터에서 live 또는 sample을 선택하고 적용하세요.
+        준비 점검은 출처를 혼합하지 않습니다. 상단 모니터링 설정에서 실제 수집 또는 예시 데이터를 선택하세요.
       </div>
     );
   const data = resource.data?.value;
@@ -57,16 +53,11 @@ export function ReadinessScreen({
       <ResourceStatus label={`수집·정책 상태 · ${source}`} resource={resource} />
       {data && (
         <>
-          <p className="scope">
-            대상 {resource.data?.instanceId || '전체 허용 인스턴스'} · 출처 {shownSource} · 서버
-            판정 시각 {dateTime(data.generatedAt)} · {data.staleAfterSeconds}초 초과 stale · 조회는
-            원격 점검 명령이 아닌 저장된 보고 읽기입니다.
-          </p>
+          <div className="scope-chips"><span className="status-chip">{shownSource}</span><span className="status-chip">{resource.data?.instanceId || '전체 서버'}</span></div>
           <Stats
             items={(['ready', 'warning', 'error', 'unknown', 'stale'] as const).map((state) => ({
               label: labels[state],
               value: data.items.filter((item) => item.state === state).length,
-              note: '허용 인스턴스의 상태 보고 기준',
               tone: state === 'error' ? 'warning' : '',
             }))}
           />
@@ -74,7 +65,7 @@ export function ReadinessScreen({
             <article className="panel readiness-checks">
               <div className="panel-heading">
                 <h3>수집·정책 점검표</h3>
-                <span>보안 점수·취약점 검사 아님</span>
+
               </div>
               <div className="table-scroll">
                 <table>
@@ -133,10 +124,6 @@ export function ReadinessScreen({
                 </table>
               </div>
               {!data.items.length && <p className="empty">허용 인스턴스의 상태 항목이 없습니다.</p>}
-              <p className="notice">
-                ready는 수집 준비 상태입니다. 서버 보안 정상·차단 성공·취약점 없음이라는 뜻이
-                아닙니다. 센서·정책·상태 전송 중단은 보고 시각과 사유를 함께 확인하세요.
-              </p>
             </article>
             <div className="stack">
               {(['sensors', 'policies'] as const).map((key) => (
@@ -176,8 +163,7 @@ export function ReadinessScreen({
                   </div>
                   {!data.items.some((item) => item.report?.tetragon[key].length) && (
                     <p className="empty">
-                      {key === 'sensors' ? '센서 목록 미확인' : '정책 목록 없음 또는 미확인'} ·
-                      정상으로 간주하지 않습니다.
+                      {key === 'sensors' ? '센서 목록 미확인' : '정책 목록 없음 또는 미확인'}
                     </p>
                   )}
                 </article>
@@ -186,7 +172,6 @@ export function ReadinessScreen({
           </div>
         </>
       )}
-      <AnalysisAside onAnalyze={() => onAnalyze(selectionFilters(selection))} />
     </>
   );
 }

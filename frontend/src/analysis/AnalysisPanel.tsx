@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { ApiError, api, describeError } from '../api';
 import {
   dateTime,
@@ -135,6 +135,19 @@ export default function AnalysisPanel({
         remember(value.snapshotId);
       }
       const id = value.snapshotId;
+      if (existing && !png.current) {
+        setStep('저장된 캡처로 AI 분석 중…');
+        try {
+          const result = await api.analyze(id);
+          if (!alive()) return;
+          if (result.snapshotId !== id) throw new Error('분석 응답의 스냅샷 ID가 일치하지 않습니다.');
+          setAnalysis(result);
+          onResult(result);
+          return;
+        } catch (error) {
+          if (!(error instanceof ApiError && error.code === 'IMAGE_REQUIRED')) throw error;
+        }
+      }
       if (!png.current) {
         setStep('폰트·차트 준비 후 PNG 생성 중…');
         const { captureSnapshot } = await import('./capture');
@@ -167,78 +180,32 @@ export default function AnalysisPanel({
     <section id="analysis" className="analysis-section" aria-labelledby="analysis-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">SNAPSHOT ANALYSIS</p>
-          <h2 id="analysis-title">한 시점에 고정해서, 함께 살펴보기</h2>
+          <h3 id="analysis-title">현재 조회 범위 분석</h3>
         </div>
         <button className="primary" disabled={busy} onClick={() => void run()}>
-          스냅샷 생성 · AI 분석
+          {snapshot ? '새 스냅샷 분석' : 'AI 분석 시작'}
         </button>
       </div>
-      <p className="notice">
-        현재 적용한 기간·필터로 고정합니다. 안전한 이벤트 요약·전체 집계·기간·출처와 아래 고정 영역
-        PNG를 서버를 통해 외부 AI에 전송합니다. 원본·명령 인자·프로세스 경로는 제외합니다.
-        프로세스·정책 필터는 스냅샷에서 제외됩니다. IP·파일·관계 그래프·준비 상태·위치 정보는 분석에
-        포함되지 않습니다.
-      </p>
-      <form
-        className="restore"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void restore(restoreId);
-        }}
-      >
-        <label htmlFor="snapshot-id">저장한 스냅샷</label>
-        <input
-          id="snapshot-id"
-          placeholder="스냅샷 UUID"
-          value={restoreId}
-          onChange={(e) => setRestoreId(e.target.value)}
-          disabled={busy}
-        />
-        <button disabled={busy || !restoreId}>불러오기</button>
-      </form>
+      <p className="analysis-disclosure">요약 데이터와 대시보드 캡처를 외부 AI에 전송합니다.</p>
+      <details className="restore-analysis">
+        <summary>저장한 분석 불러오기</summary>
+        <form className="restore" onSubmit={(e) => { e.preventDefault(); void restore(restoreId); }}>
+          <label htmlFor="snapshot-id">스냅샷 ID</label>
+          <input id="snapshot-id" placeholder="스냅샷 UUID" value={restoreId} onChange={(e) => setRestoreId(e.target.value)} disabled={busy} />
+          <button disabled={busy || !restoreId}>불러오기</button>
+        </form>
+      </details>
       {busy && (
         <p className="status-line" role="status">
           <span className="spinner" />
-          {step} 선택 변경과 중복 요청은 잠시 잠깁니다.
+          {step}
         </p>
       )}
       {error && (
         <div role="alert" className="error-banner">
-          <b>분석 흐름이 중단되었습니다.</b>
+          <b>분석할 수 없습니다</b>
           <p>{error}</p>
-          <p>고정 데이터는 유지됩니다. 캡처·업로드 실패 시 AI는 호출하지 않습니다.</p>
-        </div>
-      )}
-      {snapshot ? (
-        <>
-          <div className="snapshot-toolbar">
-            <span>라이브 폴링과 분리된 고정 영역 · 너비 1100px</span>
-            <div>
-              {pngUrl && (
-                <a
-                  className="button"
-                  href={pngUrl}
-                  download={`snapshot-${snapshot.snapshotId}.png`}
-                >
-                  PNG 다운로드
-                </a>
-              )}
-              {!analysis && (
-                <button disabled={busy} onClick={() => void run(snapshot)}>
-                  같은 스냅샷 분석 재시도
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="snapshot-scroll">
-            <SnapshotView snapshot={snapshot} ref={captureRef} />
-          </div>
-          {imageSha && <p className="hint mono">업로드 이미지 SHA-256 · {imageSha}</p>}
-        </>
-      ) : (
-        <div className="empty panel">
-          기간을 선택하고 스냅샷을 생성하세요. 고정 데이터와 캡처를 만든 뒤 분석합니다.
+          {error.includes('AI_QUOTA_EXHAUSTED') && <a className="button" href="https://platform.openai.com/settings/organization/billing/" target="_blank" rel="noreferrer">OpenAI 크레딧 확인 ↗</a>}
         </div>
       )}
       {analysis && (
@@ -265,11 +232,24 @@ export default function AnalysisPanel({
               </article>
             ))}
           </div>
-          <p className="hint">
-            분석 {analysis.analysisId} · 지침 {analysis.instructionVersion} · 판단을 돕는 자료이며
-            명령이나 정책을 실행하지 않습니다.
-          </p>
         </div>
+      )}
+      {snapshot && (
+        <div className="analysis-snapshot">
+          <div className="panel-heading"><h3>분석 데이터</h3><span>{dateTime(snapshot.createdAt)}</span></div>
+          <div className="snapshot-summary"><span>관찰 이벤트 <b>{snapshot.dashboard.total}건</b></span><span>주의 <b>{snapshot.dashboard.attention}건</b></span></div>
+          <div className="snapshot-toolbar">
+            {pngUrl && <a className="button" href={pngUrl} download={`snapshot-${snapshot.snapshotId}.png`}>캡처 다운로드</a>}
+            {!analysis && <button disabled={busy} onClick={() => void run(snapshot)}>같은 데이터로 다시 분석</button>}
+          </div>
+          {pngUrl && <details className="analysis-image-preview"><summary>분석에 사용한 화면</summary><img src={pngUrl} alt="분석에 전송한 고정 대시보드 캡처" /></details>}
+          <details className="snapshot-metadata"><summary>스냅샷 정보</summary><p className="mono">{snapshot.snapshotId}</p>{imageSha && <p className="mono">SHA-256 {imageSha}</p>}</details>
+        </div>
+      )}
+      {snapshot && createPortal(
+        <div className="snapshot-capture-stage" aria-hidden="true">
+          <SnapshotView snapshot={snapshot} ref={captureRef} />
+        </div>, document.body,
       )}
     </section>
   );

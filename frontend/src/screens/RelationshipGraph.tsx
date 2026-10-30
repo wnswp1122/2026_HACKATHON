@@ -57,7 +57,7 @@ export function RelationshipGraph({ graph }: { graph: Graph }) {
       </div>
       {!graph.nodes.length ? (
         <p className="empty">
-          확인된 관계가 없습니다. PID나 실행 파일 이름으로 관계를 추측하지 않습니다.
+          프로세스 관계 없음
         </p>
       ) : (
         <div className="graph-scroll">
@@ -68,9 +68,7 @@ export function RelationshipGraph({ graph }: { graph: Graph }) {
             role="img"
             aria-label="서버 프로세스 IP 파일 관계 그래프"
           >
-            <title>
-              parent는 확인된 parentExecId, observed는 관찰 관계이며 인과관계 확정이 아닙니다.
-            </title>
+            <title>프로세스·네트워크 관계</title>
             {kinds.map((kind, index) => (
               <text key={kind} x={index * 245 + 28} y="18" fill="#8b93a0" fontSize="12">
                 {labels[kind]}
@@ -119,11 +117,6 @@ export function RelationshipGraph({ graph }: { graph: Graph }) {
           </svg>
         </div>
       )}
-      <p className="hint">
-        {graph.truncated ? '상한으로 잘린 일부 관계입니다.' : '서버 응답 범위의 관계입니다.'} 간선
-        수는 전체 이벤트 수와 다릅니다. 부모는 instanceId+execId와 실제 parentExecId로 연결하며 누락
-        부모는 미관찰 노드입니다.
-      </p>
       {selected && (
         <div className="graph-detail">
           <p className="mono">{graph.nodes.find((n) => n.id === selected)?.label}</p>
@@ -137,6 +130,7 @@ export function RelationshipGraph({ graph }: { graph: Graph }) {
           </ul>
         </div>
       )}
+      {graph.truncated && <span className="status-chip caution">일부 관계만 표시</span>}
     </article>
   );
 }

@@ -63,12 +63,16 @@ def request_analysis(
     }
     try:
         with client.stream("POST", "responses", headers={"Authorization": f"Bearer {key}"}, json=body) as response:
-            response.raise_for_status()
             data = bytearray()
             for chunk in response.iter_bytes(chunk_size=65536):
                 data.extend(chunk)
                 if len(data) > MAX_RESPONSE_BYTES:
                     raise ValueError
+            if response.status_code == 429:
+                error = json.loads(data).get("error", {})
+                if isinstance(error, dict) and (error.get("type") == "insufficient_quota" or error.get("code") in ("insufficient_quota", "credit_balance_exhausted")):
+                    raise fail(503, "AI_QUOTA_EXHAUSTED", "OpenAI 프로젝트의 사용 가능한 크레딧이 없습니다. 결제·사용 한도를 확인하세요.")
+            response.raise_for_status()
         result = json.loads(data)
         return parse_response(result)
     except httpx.TimeoutException:
