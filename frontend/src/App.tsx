@@ -199,8 +199,8 @@ export default function App() {
     <div className={`app-shell ${analysisOpen ? 'analysis-is-open' : ''}`}>
       <aside className="sidebar">
         <a className="brand" href="/overview" onClick={(event) => go(event, '/overview')}>
-          <span className="brand-icon">L</span>
-          <b>LiteSOC</b>
+          <span className="brand-icon">S</span>
+          <b>ServerWatch</b>
         </a>
         <p className="nav-caption">서버 보안 관찰</p>
         {routes.map((item) => (
@@ -345,7 +345,7 @@ export default function App() {
               보안 개요로 이동
             </a>
           )}
-          <footer>LiteSOC · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
+          <footer>ServerWatch · AI 기반 서버 보안 모니터링·분석 플랫폼</footer>
         </main>
       </div>
       <aside
