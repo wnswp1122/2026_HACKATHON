@@ -100,6 +100,7 @@ def run_local(args):
         finally:
             signal.signal(signal.SIGTERM, signal.SIG_IGN)
             signal.signal(signal.SIGINT, signal.SIG_IGN)
+            signal.signal(signal.SIGHUP, signal.SIG_IGN)
             for child in children:
                 if child.poll() is None:
                     child.send_signal(signal.SIGINT)
