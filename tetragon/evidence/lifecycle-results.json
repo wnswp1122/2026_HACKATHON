@@ -1,0 +1,420 @@
+[
+  {
+    "stage": "duplicate-start",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "start"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "ERROR: hack-tetragon이 이미 실행 중\n"
+  },
+  {
+    "stage": "duplicate-prepare",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "prepare"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "ERROR: hack-demo가 이미 있음. 재준비로 기존 파일을 덮어쓰지 않음\n"
+  },
+  {
+    "stage": "owned-demo-stop",
+    "command": [
+      "docker",
+      "stop",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "owned-demo-remove",
+    "command": [
+      "docker",
+      "rm",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "owned-demo-empty-volume-remove",
+    "command": [
+      "docker",
+      "volume",
+      "rm",
+      "hack-tetragon-board-data"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon-board-data\n",
+    "stderr": ""
+  },
+  {
+    "stage": "reprepare",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "prepare"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "ERROR: Error response from daemon: get hack-tetragon-board-data: no such volume\n"
+  },
+  {
+    "stage": "reprepare-fixed",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "prepare"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon-board-data\n4fcf87bca9ef97a93f8b68fc8cc5eca832698d7e421af85ba8665266c72ff9e1\n",
+    "stderr": ""
+  },
+  {
+    "stage": "recreated-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "Traceback (most recent call last):\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 1357, in do_open\n    h.request(req.get_method(), req.selector, req.data, headers,\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1386, in request\n    self._send_request(method, url, body, headers, encode_chunked)\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1432, in _send_request\n    self.endheaders(body, encode_chunked=encode_chunked)\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1381, in endheaders\n    self._send_output(message_body, encode_chunked=encode_chunked)\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1141, in _send_output\n    self.send(msg)\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1085, in send\n    self.connect()\n  File \"/usr/local/lib/python3.12/http/client.py\", line 1051, in connect\n    self.sock = self._create_connection(\n                ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/socket.py\", line 865, in create_connection\n    raise exceptions[0]\n  File \"/usr/local/lib/python3.12/socket.py\", line 850, in create_connection\n    sock.connect(sa)\nConnectionRefusedError: [Errno 111] Connection refused\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 215, in urlopen\n    return opener.open(url, data, timeout)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 515, in open\n    response = self._open(req, data)\n               ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 532, in _open\n    result = self._call_chain(self.handle_open, protocol, protocol +\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 492, in _call_chain\n    result = func(*args)\n             ^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 1386, in http_open\n    return self.do_open(http.client.HTTPConnection, req)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/urllib/request.py\", line 1360, in do_open\n    raise URLError(err)\nurllib.error.URLError: <urlopen error [Errno 111] Connection refused>\n"
+  },
+  {
+    "stage": "recreated-health-after-startup",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "missing-file-prepare",
+    "command": [
+      "docker",
+      "exec",
+      "-u",
+      "0",
+      "hack-demo",
+      "mv",
+      "/tmp/hack-demo/protected.txt",
+      "/tmp/hack-demo/protected.saved"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "stage": "missing-file-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 1,
+    "stdout": "PROBE_START pid=36 time=2026-10-30T18:28:23.076189+00:00\nREAD_ERROR errno=2\n",
+    "stderr": ""
+  },
+  {
+    "stage": "missing-file-restore",
+    "command": [
+      "docker",
+      "exec",
+      "-u",
+      "0",
+      "hack-demo",
+      "mv",
+      "/tmp/hack-demo/protected.saved",
+      "/tmp/hack-demo/protected.txt"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "stage": "recreated-enforce",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "enforce"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/enforce.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE      NPOST   NENFORCE   NMONITOR\n2    hack-demo-enforce   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      enforce   0       0          0\nAPPLIED mode=enforce mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "recreated-killed-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 137,
+    "stdout": "PROBE_START pid=54 time=2026-10-30T18:28:24.298442+00:00\n",
+    "stderr": ""
+  },
+  {
+    "stage": "recreated-enforce-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-stop",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "stop"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-enforce\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\nhack-tetragon\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-stopped-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-restart",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "start"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-restart-status",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "status"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "sensor-restart-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=72 time=2026-10-30T18:28:27.032476+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-demo-stop",
+    "command": [
+      "docker",
+      "stop",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-demo-remove-preserve-owned-volume",
+    "command": [
+      "docker",
+      "rm",
+      "hack-demo"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-demo\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-prepare-with-ready-wait",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "prepare"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon-board-data\n032eae43c78ec65f7930f835459b38c3fe3a06afb84e1ad1758aaff51a6af726\n{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-observe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "observe"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/observe.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE           NPOST   NENFORCE   NMONITOR\n2    hack-demo-observe   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      monitor_only   0       0          0\nAPPLIED mode=observe mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-observe-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=36 time=2026-10-30T18:28:52.259549+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-observe-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-enforce",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "enforce"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-observe\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\ntracing policy \"/policies/enforce.yaml\" added\nID   NAME                DOMAIN   STATE     FILTERID   NAMESPACE   SENSORS          KERNELMEMORY   MODE      NPOST   NENFORCE   NMONITOR\n3    hack-demo-enforce   grpc     enabled   0          (global)    generic_kprobe   544.48 kB      enforce   0       0          0\nAPPLIED mode=enforce mnt=4026532395\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-enforce-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 137,
+    "stdout": "PROBE_START pid=54 time=2026-10-30T18:28:53.919671+00:00\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-enforce-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-off",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "off"
+    ],
+    "exitCode": 0,
+    "stdout": "tracing policy \"hack-demo-enforce\" deleted\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-off-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=66 time=2026-10-30T18:28:54.733950+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-off-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-sensor-stop",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "stop"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\nhack-tetragon\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-sensor-start-ready",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "start"
+    ],
+    "exitCode": 0,
+    "stdout": "hack-tetragon\nID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-no-policy",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "status"
+    ],
+    "exitCode": 0,
+    "stdout": "ID   NAME   DOMAIN   STATE   FILTERID   NAMESPACE   SENSORS   KERNELMEMORY   MODE   NPOST   NENFORCE   NMONITOR\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-restored-probe",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "probe"
+    ],
+    "exitCode": 0,
+    "stdout": "PROBE_START pid=78 time=2026-10-30T18:28:57.506745+00:00\nREAD_OK bytes=9\n",
+    "stderr": ""
+  },
+  {
+    "stage": "final-health",
+    "command": [
+      "python3",
+      "/home/junje.guest/2026-hack-runtime/tetragon/src/runtime.py",
+      "health"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"status\":\"ok\",\"database\":\"ok\"}\n",
+    "stderr": ""
+  }
+]
