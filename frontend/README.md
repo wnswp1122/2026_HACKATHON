@@ -1,8 +1,8 @@
 # SaaS 대시보드 담당 지침
 
-## Security Story 사고 대응 프론트엔드 MVP (2026-10-31)
+## Server Watch 사고 대응 프론트엔드 MVP (2026-10-31)
 
-이 저장소의 최신 사용자 요청에 따라 `src/main.tsx`에 React·TypeScript·Vite 화면 3개를 구현했다. 아래의 기존 스냅샷/캡처 지침은 이전 범위의 설계 기록이며, 현재 실행 가능한 화면과 API는 사고 중심 MVP다. 백엔드 팀의 조회 계약이 확정되면 연결 지점을 함께 조정해야 한다.
+이 저장소의 최신 사용자 요청에 따라 React·TypeScript·Vite 화면 4개를 구현했다. 기존 3개 화면은 Figma 프레임 `318:2`, `319:2`, `319:174`를 기준으로 한다. `litesoc-globe.zip`의 3D 지구본을 옮긴 실시간 위협 지도 화면이 추가됐다. 아래의 기존 스냅샷/캡처 지침은 이전 범위의 설계 기록이며, 현재 실행 가능한 화면과 API는 사고 중심 MVP다. 백엔드 팀의 조회 계약이 확정되면 연결 지점을 함께 조정해야 한다.
 
 ### 실행
 
@@ -24,6 +24,14 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
 브라우저가 FastAPI를 직접 호출하므로 서로 다른 포트로 실행할 경우 FastAPI에 `http://localhost:5173` CORS 허용이 필요하다. API 모드에서 실패한 요청은 Demo로 대체하지 않으며 오류와 마지막 성공 조회 시각을 표시한다. 4초마다 개요·사고·이벤트 목록을 재조회한다. 수집기 연결 상태는 `collectorStatus` 값이 있을 때만 정상/이상을 표시한다. API 키나 OpenAI 키는 브라우저 설정에 넣지 않는다.
+
+### 실시간 위협 지도
+
+사이드바의 **실시간 위협 지도** 또는 `#/threat-map`에서 연다. 첨부 ZIP의 3D 지구본·GeoJSON 국가 경계·이벤트 피드·유형/국가 집계·5단계 시나리오를 현재 React 앱의 화면으로 옮겼다. Demo 모드에서는 첨부된 예시의 국가·좌표·단계·내용을 사용해 시연 이벤트가 순서대로 나타난다. 실제 탐지나 OpenAI 분석으로 표시하지 않는다. 원본 HTML의 `innerHTML` 삽입을 사용하지 않고 React 텍스트로 렌더링한다.
+
+API 모드에서 지도를 실시간으로 채우려면 `frontend/.env.local`에 `VITE_THREAT_WS_URL=ws://127.0.0.1:8090/ws`처럼 WebSocket 주소를 지정한다. 이는 ZIP의 별도 FastAPI PoC 프로토콜을 위한 **선택적 연결**이다. `{"type":"init","events":[...]}`와 `{"type":"event","data":{...}}`를 받는다. 필요한 이벤트 필드는 ZIP의 `src_lat/src_lng`, `dst_lat/dst_lng`, `src_ip`, `src_country`, `src_iso`, `dst_host`, `type`, `severity`, `detail`, `t`, 선택적 `chain`이다. 좌표가 없으면 피드에는 보여도 지도 경로는 표시하지 않는다. WebSocket이 설정되지 않거나 끊기면 연결 상태를 표시하고 Demo 이벤트로 대체하지 않는다. 기존 사고 API나 Tetragon 수집기가 GeoIP 좌표를 제공한다는 가정은 하지 않는다.
+
+ZIP의 Redis 서버 및 이벤트 생성 Python 스크립트는 현재 FastAPI 백엔드에 합치지 않았다. 팀이 실서비스 연결을 원하면 이 WebSocket 계약, 인증, GeoIP 처리 위치를 백엔드 담당과 합의해야 한다. 국가 GeoJSON과 참조 구현의 저작권 고지는 [THREAT_MAP_NOTICE.md](THREAT_MAP_NOTICE.md)에 보존했다.
 
 ### 제안 조회·변경 계약
 

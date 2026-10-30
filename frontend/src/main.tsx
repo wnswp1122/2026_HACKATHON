@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { dataClient, dataMode } from './api';
@@ -6,12 +6,13 @@ import type { Analysis, Incident, IncidentStatus, Overview, Severity } from './m
 import { severities, severityLabels, statuses, statusLabels } from './model';
 import './style.css';
 
-type Page = 'dashboard' | 'analysis' | 'response';
+const ThreatMapPage = React.lazy(() => import('./ThreatMapPage'));
+type Page = 'dashboard' | 'threat-map' | 'analysis' | 'response';
 function route(): { page: Page; id: string | null } {
   const parts = location.hash.replace(/^#\/?/, '').split('/');
-  return { page: parts[0] === 'analysis' || parts[0] === 'response' ? parts[0] : 'dashboard', id: parts[1] || null };
+  return { page: parts[0] === 'analysis' || parts[0] === 'response' || parts[0] === 'threat-map' ? parts[0] : 'dashboard', id: parts[1] || null };
 }
-const go = (page: Page, id?: string) => { location.hash = page === 'dashboard' ? '#/' : `#/${page}/${encodeURIComponent(id || '')}`; };
+const go = (page: Page, id?: string) => { location.hash = page === 'dashboard' ? '#/' : page === 'threat-map' ? '#/threat-map' : `#/${page}/${encodeURIComponent(id || '')}`; };
 const clock = (value: string | null) => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) : '미수집';
 const dateTime = (value: string | null) => value && !Number.isNaN(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'short', timeStyle: 'medium', hour12: false }).format(new Date(value)) : '미수집';
 const formatNumber = (value: number | null) => value === null ? '—' : value.toLocaleString('ko-KR');
@@ -147,9 +148,9 @@ function App() {
     } catch (e) { setError(e instanceof Error ? e.message : '데이터를 불러오지 못했습니다.'); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void refresh(); const timer = setInterval(() => { void refresh(); }, 4000); return () => clearInterval(timer); }, [refresh]);
+  useEffect(() => { if (locationState.page === 'threat-map') return; void refresh(); const timer = setInterval(() => { void refresh(); }, 4000); return () => clearInterval(timer); }, [refresh, locationState.page]);
   useEffect(() => {
-    if (locationState.page === 'dashboard') return;
+    if (locationState.page === 'dashboard' || locationState.page === 'threat-map') return;
     const id = locationState.id || incidents[0]?.id;
     if (!id) return;
     let active = true;
@@ -173,7 +174,34 @@ function App() {
     finally { setAnalyzing(false); }
   }
   const collector = overview?.collectorStatus;
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-tile">S</span><strong>Security Story</strong></div><div className="nav-label">WORKSPACE</div><nav aria-label="주요 화면"><button className={locationState.page === 'dashboard' ? 'active' : ''} onClick={() => go('dashboard')}><i />개요</button><button className={locationState.page === 'analysis' ? 'active' : ''} onClick={() => go('analysis', currentId)}><i />AI 사고 분석</button><button className={locationState.page === 'response' ? 'active' : ''} onClick={() => go('response', currentId)}><i />대응 및 조치</button></nav><div className="sidebar-bottom"><div className="nav-label">DATA SOURCE</div><div className="source-line"><i className={collector === 'healthy' ? 'on' : collector === 'degraded' ? 'warn' : ''} />{dataMode === 'demo' ? '시연용 데이터' : 'FastAPI · 실시간 조회'}</div><small>{dataMode === 'demo' ? 'DEMO DATA · 실제 수집 아님' : overview?.collectorLabel || '수집기 상태 확인 필요'}</small></div></aside><div className="workspace"><header className="topbar"><span className="project">OO스토어&nbsp; / &nbsp;{dataMode}</span><input aria-label="사고 검색" value={search} onChange={e => setSearch(e.target.value)} placeholder="서버, 사건 제목, 사건 ID 검색" /><div className="top-spacer" /><Badge tone={collector === 'healthy' ? 'green' : collector === 'degraded' ? 'amber' : 'muted'}>{collector === 'healthy' ? '● 수집 정상 보고' : collector === 'degraded' ? '● 수집 이상 보고' : '● 수집 상태 미확인'}</Badge>{dataMode === 'demo' && <Badge tone="amber">DEMO</Badge>}<span className="avatar">정</span></header><main><div className="connection-row"><span>{error ? <span className="text-amber">연결 오류 · 기존 데이터 유지</span> : dataMode === 'demo' ? 'Demo 데이터 연결' : 'API 연결됨'}</span><span>마지막 성공 조회 {lastSuccess ? dateTime(lastSuccess) : '없음'} · 4초 간격</span></div>{error && <div className="error-banner" role="alert">{error}<button onClick={() => void refresh()}>다시 시도</button></div>}{loading && !overview ? <Empty>보안 현황을 불러오는 중입니다…</Empty> : locationState.page === 'dashboard' ? overview ? <Dashboard overview={overview} incidents={incidents} search={search} onSelect={id => go('analysis', id)} /> : <Empty>표시할 대시보드 데이터가 없습니다.</Empty> : detailError ? <div className="error-banner" role="alert">{detailError}<button onClick={() => void refresh()}>다시 시도</button></div> : !displayed ? <Empty>{incidents.length ? '사고 상세를 불러오는 중입니다…' : '표시할 사고가 없습니다.'}</Empty> : locationState.page === 'analysis' ? <AnalysisPage incident={displayed} onResponse={() => go('response', displayed.id)} onAnalyze={() => void analyze()} analyzing={analyzing} analysisError={analysisError} /> : <ResponsePage incidents={incidents.filter(x => !search || `${x.id} ${x.title} ${x.server}`.toLowerCase().includes(search.toLowerCase()))} selected={displayed} onSelect={id => go('response', id)} onUpdate={changes => void update(changes)} saving={saving} saveError={saveError} />}{locationState.page === 'analysis' && <div className="page-footer"><button className="secondary" onClick={() => go('dashboard')}>← 대시보드</button><button className="primary" onClick={() => go('response', displayed?.id)}>대응 상태 기록 →</button></div>}</main></div></div>;
+  const pageContent = locationState.page === 'threat-map'
+    ? <Suspense fallback={<Empty>3D 위협 지도를 불러오는 중입니다…</Empty>}><ThreatMapPage /></Suspense>
+    : loading && !overview ? <Empty>보안 현황을 불러오는 중입니다…</Empty>
+    : locationState.page === 'dashboard' ? overview
+      ? <Dashboard overview={overview} incidents={incidents} search={search} onSelect={id => go('analysis', id)} />
+      : <Empty>표시할 대시보드 데이터가 없습니다.</Empty>
+    : detailError ? <div className="error-banner" role="alert">{detailError}<button onClick={() => void refresh()}>다시 시도</button></div>
+    : !displayed ? <Empty>{incidents.length ? '사고 상세를 불러오는 중입니다…' : '표시할 사고가 없습니다.'}</Empty>
+    : locationState.page === 'analysis'
+      ? <AnalysisPage incident={displayed} onResponse={() => go('response', displayed.id)} onAnalyze={() => void analyze()} analyzing={analyzing} analysisError={analysisError} />
+      : <ResponsePage incidents={incidents.filter(x => !search || `${x.id} ${x.title} ${x.server}`.toLowerCase().includes(search.toLowerCase()))} selected={displayed} onSelect={id => go('response', id)} onUpdate={changes => void update(changes)} saving={saving} saveError={saveError} />;
+  return <div className="app-shell">
+    <aside className="sidebar">
+      <div className="brand"><span className="brand-tile">S</span><strong>Server Watch</strong></div>
+      <div className="nav-label">WORKSPACE</div>
+      <nav aria-label="주요 화면">
+        <button className={locationState.page === 'dashboard' ? 'active' : ''} onClick={() => go('dashboard')}><i />개요</button>
+        <button className={locationState.page === 'threat-map' ? 'active' : ''} onClick={() => go('threat-map')}><i />실시간 위협 지도</button>
+        <button className={locationState.page === 'analysis' ? 'active' : ''} onClick={() => go('analysis', currentId)}><i />AI 사고 분석</button>
+        <button className={locationState.page === 'response' ? 'active' : ''} onClick={() => go('response', currentId)}><i />대응 및 조치</button>
+      </nav>
+      <div className="sidebar-bottom"><div className="nav-label">DATA SOURCE</div><div className="source-line"><i className={collector === 'healthy' ? 'on' : collector === 'degraded' ? 'warn' : ''} />{dataMode === 'demo' ? '시연용 데이터' : 'FastAPI · 실시간 조회'}</div><small>{dataMode === 'demo' ? 'DEMO DATA · 실제 수집 아님' : overview?.collectorLabel || '수집기 상태 확인 필요'}</small></div>
+    </aside>
+    <div className="workspace">
+      <header className="topbar"><span className="project">OO스토어&nbsp; / &nbsp;{dataMode}</span>{locationState.page !== 'threat-map' && <input aria-label="사고 검색" value={search} onChange={e => setSearch(e.target.value)} placeholder="서버, 사건 제목, 사건 ID 검색" />}<div className="top-spacer" />{locationState.page !== 'threat-map' && <Badge tone={collector === 'healthy' ? 'green' : collector === 'degraded' ? 'amber' : 'muted'}>{collector === 'healthy' ? '● 수집 정상 보고' : collector === 'degraded' ? '● 수집 이상 보고' : '● 수집 상태 미확인'}</Badge>}{dataMode === 'demo' && <Badge tone="amber">DEMO</Badge>}<span className="avatar">정</span></header>
+      <main>{locationState.page !== 'threat-map' && <><div className="connection-row"><span>{error ? <span className="text-amber">연결 오류 · 기존 데이터 유지</span> : dataMode === 'demo' ? 'Demo 데이터 연결' : 'API 연결됨'}</span><span>마지막 성공 조회 {lastSuccess ? dateTime(lastSuccess) : '없음'} · 4초 간격</span></div>{error && <div className="error-banner" role="alert">{error}<button onClick={() => void refresh()}>다시 시도</button></div>}</>}{pageContent}{locationState.page === 'analysis' && <div className="page-footer"><button className="secondary" onClick={() => go('dashboard')}>← 대시보드</button><button className="primary" onClick={() => go('response', displayed?.id)}>대응 상태 기록 →</button></div>}</main>
+    </div>
+  </div>;
 }
 
 const container = document.getElementById('root') as (HTMLElement & { securityStoryRoot?: Root });

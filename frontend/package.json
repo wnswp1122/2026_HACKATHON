@@ -1,5 +1,5 @@
 {
-  "name": "security-story-frontend",
+  "name": "server-watch-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,6 +11,7 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-globe.gl": "^2.38.0",
     "recharts": "^3.3.0"
   },
   "devDependencies": {
