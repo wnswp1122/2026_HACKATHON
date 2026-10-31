@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, describeError } from '../api';
-import { dateTime, number, serverName, type PeriodFilters } from '../types';
+import { dateTime, number, serverName, selectionFilters, type Selection, type PeriodFilters } from '../types';
 
 const titles: Record<string, string> = {
   '/overview': '보안 개요', '/telemetry': '텔레메트리', '/servers': '서버 보안',
@@ -8,13 +8,13 @@ const titles: Record<string, string> = {
 };
 type Result = { facts: string[]; hypotheses: string[]; checks: string[]; limitations: string[] };
 
-export default function SampleAnalysisPanel({ screen, filters }: { screen: string; filters: PeriodFilters }) {
+export default function SampleAnalysisPanel({ screen, selection, filters: fixedFilters }: { screen: string; selection: Selection; filters?: PeriodFilters }) {
   const [result, setResult] = useState<Result>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [createdAt, setCreatedAt] = useState('');
-  const scopeKey = JSON.stringify(filters);
+  const scopeKey = JSON.stringify(fixedFilters || selection);
   useEffect(() => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -22,6 +22,7 @@ export default function SampleAnalysisPanel({ screen, filters }: { screen: strin
     const delay = new Promise<void>((resolve) => { timer = setTimeout(resolve, 2200); });
     async function run() {
       try {
+        const filters = fixedFilters || selectionFilters(selection);
         const replayId = new URLSearchParams(location.search).get('replay');
         const [dashboard, detail] = await Promise.all([
           api.dashboard(filters, controller.signal),

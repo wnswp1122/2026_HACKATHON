@@ -10,7 +10,6 @@ import { useResource } from './screens/useResource';
 import {
   dateTime,
   safeSnapshotFilters,
-  selectionFilters,
   sourceLabel,
   type Analysis,
   type PeriodFilters,
@@ -81,12 +80,8 @@ export default function App() {
       new URLSearchParams(location.search).has('snapshot') ||
       new URLSearchParams(location.search).get('analysis') === 'open',
   );
-  const [analysisContext, setAnalysisContext] = useState<PeriodFilters>();
   const [replayFilters, setReplayFilters] = useState<PeriodFilters>();
-  useEffect(() => {
-    // 새 분석의 범위만 갱신한다. 저장된 스냅샷과 조사는 그대로 유지한다.
-    setAnalysisContext(path === '/replay' ? replayFilters : selectionFilters(selection));
-  }, [selection, path, replayFilters]);
+  const analysisContext = path === '/replay' ? replayFilters : undefined;
   const analysisToggleRef = useRef<HTMLButtonElement>(null);
   const analysisCloseRef = useRef<HTMLButtonElement>(null);
   const instances = useResource(api.instances, refresh);
@@ -141,9 +136,8 @@ export default function App() {
     url.searchParams.delete('event');
     history.replaceState(null, '', url);
   }
-  function analyze(filters?: PeriodFilters) {
-    if (!busy) setAnalysisContext(filters || selectionFilters(selection));
-    setAnalysisOpen(true);
+  function analyze() {
+    if (!busy) setAnalysisOpen(true);
   }
   function closeAnalysis() {
     setAnalysisOpen(false);
@@ -203,7 +197,6 @@ export default function App() {
         setConfigured(true);
         setSetupOpen(false);
         setBriefing(undefined);
-        setAnalysisContext(undefined);
         setAnalysisOpen(false);
       }}
     />
@@ -256,15 +249,7 @@ export default function App() {
                 (path === '/replay' && !replayFilters) ||
                 (path === '/readiness' && !selection.source))
               }
-              onClick={() => analysisOpen ? closeAnalysis() :
-                analyze(
-                  path === '/replay'
-                    ? replayFilters
-                    : ['/overview', '/telemetry', '/servers'].includes(path)
-                      ? live.data?.filters
-                      : undefined,
-                )
-              }
+              onClick={() => analysisOpen ? closeAnalysis() : analyze()}
             >
               <b>AI</b> 안전 분석
             </button>
@@ -374,8 +359,8 @@ export default function App() {
         </div>
         <div className="ai-sidebar-body">
           <Suspense fallback={<p role="status">분석 화면 준비 중…</p>}>
-            {(analysisContext?.source || selection.source) === 'sample'
-              ? analysisOpen && <SampleAnalysisPanel key={path} screen={path} filters={analysisContext || selectionFilters(selection)} />
+            {!new URLSearchParams(location.search).has('snapshot') && (analysisContext?.source || selection.source) === 'sample'
+              ? analysisOpen && <SampleAnalysisPanel key={path} screen={path} selection={selection} filters={analysisContext} />
               : <AnalysisPanel
               selection={selection}
               filters={analysisContext ? safeSnapshotFilters(analysisContext) : undefined}
