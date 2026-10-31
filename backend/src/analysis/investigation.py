@@ -75,11 +75,16 @@ def sample_analysis(targets, context, all_events=None):
         if kind == 'FILE_ACCESS':
             summary = f"{name} 프로세스에서 {item['fileName'] or '보호 대상 파일'}에 대한 {item['fileOperation'] or '접근'} 동작이 관찰됐습니다. "
             summary += "웹 서비스의 일반 요청 처리와 관련된 접근인지, 예상하지 못한 자식 프로세스가 민감 정보를 탐색하는 과정인지 확인할 필요가 있습니다."
+        elif kind == 'NETWORK' and item['status'] != 'attention':
+            network = event.get('network') or {}
+            ip = network.get('destinationIp') or '목적지 미확인'
+            endpoint = f"{ip}:{item['destinationPort'] or '미확인'}"
+            summary = f"{name}의 {endpoint} 대상 네트워크 활동이 관찰됐습니다. 이 기록은 경고 정책에 일치하지 않았으며, 정상 업무 여부는 실행 맥락과 함께 확인해야 합니다."
         elif kind == 'NETWORK':
             network = event.get('network') or {}
             ip = network.get('destinationIp') or '목적지 미확인'
             actor = (event.get('process') or {}).get('execId')
-            related = [e for e in all_events if e.get('instanceId') == event.get('instanceId') and (e.get('process') or {}).get('execId') == actor and e.get('eventType') == 'NETWORK' and (e.get('occurredAt') or '') <= (event.get('occurredAt') or '')]
+            related = [e for e in all_events if e.get('instanceId') == event.get('instanceId') and (e.get('process') or {}).get('execId') == actor and e.get('eventType') == 'NETWORK' and e.get('status') == 'attention' and (e.get('occurredAt') or '') <= (event.get('occurredAt') or '')]
             ordinal = max(1, len(related))
             endpoint = f"{ip}:{item['destinationPort'] or '미확인'}"
             if ordinal == 1:
@@ -92,9 +97,9 @@ def sample_analysis(targets, context, all_events=None):
                     summary = f"{name}이 {endpoint}로 첫 번째 경고 대상 연결을 시도했습니다. 이 프로세스가 시작된 요청과 목적지의 업무상 필요성을 확인하세요."
             elif ordinal == 2:
                 previous = (related[-2].get('network') or {}).get('destinationIp') or '이전 목적지'
-                summary = f"같은 {name}이 {previous}에 이어 {endpoint}로 목적지를 바꿨습니다. 짧은 구간에 두 번째 경고 대상과 통신한 기록으로, 정상 연동의 재시도인지 확인이 필요합니다."
+                summary = f"같은 {name}의 두 번째 경고 연결은 {endpoint}에서 관찰됐습니다. 앞선 경고 목적지 {previous}와 대조해 정상 연동의 재시도인지 확인하세요."
             elif ordinal == 3:
-                summary = f"{name}의 세 번째 경고 연결 대상은 {endpoint}입니다. 동일 프로세스가 여러 목적지로 연결 범위를 넓히고 있어 앞선 두 연결과 함께 확인해야 합니다."
+                summary = f"{name}의 세 번째 경고 연결 대상은 {endpoint}입니다. 동일 프로세스의 앞선 두 경고 연결과 함께 목적지와 실행 흐름을 확인해야 합니다."
             else:
                 summary = f"{name}이 {endpoint}로 {ordinal}번째 경고 연결을 시도했습니다. 이후 프로세스 종료·보호 파일 접근 기록과 대조해 연속 통신의 종료 경위를 확인하세요."
         elif kind == 'PROCESS_EXEC':
@@ -129,7 +134,7 @@ def analyze_replay(replay_id: UUID, body: AnalysisRequest,
             raise fail(404, "NOT_FOUND", "저장된 조사를 찾을 수 없습니다.")
         stored_events = row["payload"]["events"]
         if stored_events and all(e.get("source") == "sample" for e in stored_events):
-            key += ":details-v2"
+            key += ":details-v3"
         saved = connection.execute("SELECT response FROM replay_analyses WHERE replay_id=%s AND focus_key=%s", (replay_id, key)).fetchone()
         if saved:
             return saved["response"]
