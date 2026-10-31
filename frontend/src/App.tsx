@@ -66,6 +66,15 @@ export default function App() {
   const [detailId, setDetailId] = useState(
     path === '/telemetry' ? new URLSearchParams(location.search).get('event') || '' : '',
   );
+  useEffect(() => {
+    const restoreDetail = () => setDetailId(
+      location.pathname.replace(/\/$/, '') === '/telemetry'
+        ? new URLSearchParams(location.search).get('event') || ''
+        : '',
+    );
+    window.addEventListener('popstate', restoreDetail);
+    return () => window.removeEventListener('popstate', restoreDetail);
+  }, []);
   const [briefing, setBriefing] = useState<Analysis>();
   const [analysisOpen, setAnalysisOpen] = useState(
     () =>
@@ -74,6 +83,10 @@ export default function App() {
   );
   const [analysisContext, setAnalysisContext] = useState<PeriodFilters>();
   const [replayFilters, setReplayFilters] = useState<PeriodFilters>();
+  useEffect(() => {
+    // 새 분석의 범위만 갱신한다. 저장된 스냅샷과 조사는 그대로 유지한다.
+    setAnalysisContext(path === '/replay' ? replayFilters : selectionFilters(selection));
+  }, [selection, path, replayFilters]);
   const analysisToggleRef = useRef<HTMLButtonElement>(null);
   const analysisCloseRef = useRef<HTMLButtonElement>(null);
   const instances = useResource(api.instances, refresh);
@@ -85,7 +98,7 @@ export default function App() {
   const currentReadiness = readiness.data && readiness.data.source === selection.source ? readiness.data.value : undefined;
   const live = useDashboard(
     selection,
-    page,
+    path === '/telemetry' ? page : 1,
     refresh,
     configured && !setupOpen && ['/overview', '/telemetry', '/servers'].includes(path),
   );
